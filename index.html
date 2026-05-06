@@ -186,26 +186,39 @@ function salva(fascia, paziente, terapista, trattamento, prezzo){
   jsonp(SCRIPT_URL+'?'+params.toString(), null);
 }
 
+// Controlla se due fasce orarie si sovrappongono
+function fasceOverlap(f1, f2){
+  const toMin = t => { const [h,m]=t.split(':'); return parseInt(h)*60+parseInt(m); };
+  const [s1,e1] = f1.split('–').map(toMin);
+  const [s2,e2] = f2.split('–').map(toMin);
+  return s1 < e2 && s2 < e1;
+}
+
 // Costruisce le opzioni terapista per un paziente escludendo quelli già usati in fascia (anche nell'altro studio)
 function buildOptsT(fascia, pazienteCorrente, assentiSlot){
   const altroStudio = studio === 'Boccetta' ? 'Trento' : 'Boccetta';
   const pazienti = slotsMap[fascia]?.pz || [];
 
-  // Assegnati agli altri pazienti dello stesso studio
+  // Assegnati agli altri pazienti dello stesso studio nella stessa fascia
   const assegnatiStudioCorrente = pazienti
     .filter(p => p !== pazienteCorrente)
     .map(p => getSaved(fascia, p).terapista)
     .filter(t => t !== '');
 
-  // Assegnati nell'altro studio alla stessa fascia
-  const pazientiAltroStudio = (calData.studi||{})[altroStudio]||[];
-  const assegnatiAltroStudio = pazientiAltroStudio
-    .filter(ev => !ev.tuttoCiorno && fmtT(ev.inizio)+'–'+fmtT(ev.fine) === fascia)
-    .flatMap(ev => {
-      const titolo = ev.titolo||'';
-      return titolo.replace(/^\([^)]+\)\s*/,'').split('/').map(s=>s.trim()).filter(Boolean);
+  // Assegnati nell'altro studio in fasce che si sovrappongono
+  const eventiAltroStudio = (calData.studi||{})[altroStudio]||[];
+  const assegnatiAltroStudio = eventiAltroStudio
+    .filter(ev => {
+      if(ev.tuttoCiorno) return false;
+      const fAltro = fmtT(ev.inizio)+'–'+fmtT(ev.fine);
+      return fasceOverlap(fAltro, fascia);
     })
-    .map(p => (calData.assegnazioni||{})[`${altroStudio}|${fascia}|${p}`]?.terapista||'')
+    .flatMap(ev => {
+      const fAltro = fmtT(ev.inizio)+'–'+fmtT(ev.fine);
+      const titolo = ev.titolo||'';
+      return titolo.replace(/^\([^)]+\)\s*/,'').split('/').map(s=>s.trim()).filter(Boolean)
+        .map(p => (calData.assegnazioni||{})[`${altroStudio}|${fAltro}|${p}`]?.terapista||'');
+    })
     .filter(t => t !== '');
 
   const tuttiOccupati = [...new Set([...assegnatiStudioCorrente, ...assegnatiAltroStudio])];
