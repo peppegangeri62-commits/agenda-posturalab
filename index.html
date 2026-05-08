@@ -33,38 +33,43 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .sb2.hidden{display:none}
 .plist{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 
-/* ── DESKTOP: griglia piatta 1 riga ── */
-.clabs{display:grid;grid-template-columns:1.6fr 148px 148px 88px;gap:6px;padding:0 4px 5px;font-size:10px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-.pc{display:grid;grid-template-columns:1.6fr 148px 148px 88px;gap:6px;align-items:center;background:#f7f9fc;border-radius:8px;padding:7px 8px;border:1px solid #e0e7ef}
-/* wrapper divs trasparenti alla griglia su desktop */
-.pc-row,.pc-row2{display:contents}
-
-/* input e select base */
+/* ── DESKTOP: 6 colonne ── */
+.clabs{display:grid;grid-template-columns:1.4fr 124px 106px 106px 70px 36px;gap:6px;padding:0 4px 5px;font-size:10px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.pc{display:grid;grid-template-columns:1.4fr 124px 106px 106px 70px 36px;gap:6px;align-items:center;background:#f7f9fc;border-radius:8px;padding:7px 8px;border:1px solid #e0e7ef}
+.pc .pn,.pc .tr,.pc .t1,.pc .t2,.pc .pw,.pc .wb{min-width:0}
 .pc input,.pc select{padding:5px 7px;border-radius:6px;border:1px solid #ccd6e0;background:#fff;font-size:12px;width:100%}
 .pc select.ok{border-color:#2E75B6;color:#1F3864;font-weight:600;background:#e8f0fe}
 .prezzo-wrap{display:flex;align-items:stretch;border:1px solid #ccd6e0;border-radius:6px;background:#fff;overflow:hidden;width:100%}
 .prezzo-wrap.ok{border-color:#2E75B6}
-.euro{padding:0 6px;font-size:12px;color:#888;background:#f0f4f8;border-right:1px solid #ccd6e0;display:flex;align-items:center}
-.prezzo-wrap input{border:none;padding:5px 6px;font-size:12px;background:transparent;width:100%;min-width:0}
+.euro{padding:0 5px;font-size:11px;color:#888;background:#f0f4f8;border-right:1px solid #ccd6e0;display:flex;align-items:center}
+.prezzo-wrap input{border:none;padding:5px 5px;font-size:12px;background:transparent;width:100%;min-width:0}
 .prezzo-wrap input:focus{outline:none}
+.wa-btn{display:flex;align-items:center;justify-content:center;height:30px;width:100%;border-radius:6px;background:#25D366;color:#fff;text-decoration:none;font-size:11px;font-weight:700;border:none;cursor:pointer}
+.wa-btn:hover{background:#1da851}
+.wa-btn.nd{background:#b0bec5;cursor:default;pointer-events:none}
 .msg{font-size:14px;color:#888;padding:20px 0;text-align:center}
 .err{font-size:13px;color:#c0392b;padding:10px 14px;background:#fdf2f2;border-radius:8px;margin:8px 0;border:1px solid #f5c6c6}
 .footer{display:flex;gap:8px;margin-top:12px}
 .prt{padding:8px 18px;border-radius:8px;border:none;background:#1F3864;color:#fff;font-size:13px;cursor:pointer;font-weight:600}
 .prt:hover{background:#2E75B6}
 
-/* ── MOBILE: 2 righe compatte ── */
+/* ── MOBILE ── */
 @media(max-width:640px){
   body{padding:8px}
   .clabs{display:none}
-  .pc{display:flex;flex-direction:column;gap:6px;padding:8px}
-  .pc-row,.pc-row2{display:flex;gap:6px;width:100%}
-  .pc-row > *,.pc-row2 > *{flex:1}
+  .pc{grid-template-columns:1fr 1fr;gap:6px}
+  .pc .pn{grid-column:1/-1}
+  .pc .tr{grid-column:1/-1}
+  .pc .t1{grid-column:1}
+  .pc .t2{grid-column:2}
+  .pc .pw{grid-column:1}
+  .pc .wb{grid-column:2;display:flex;align-items:center}
   .pc input,.pc select,.prezzo-wrap input{font-size:13px;padding:8px 9px}
   .euro{font-size:13px;padding:0 8px}
+  .wa-btn{height:40px;font-size:13px}
 }
 @media print{
-  .header span,.top,.nav,.tbar-right,.addbtn,.del,.footer{display:none!important}
+  .header span,.top,.nav,.tbar-right,.footer{display:none!important}
   .tbar{border-radius:0}
   .slot{break-inside:avoid}
 }
@@ -81,7 +86,7 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 </div>
 <div class="nav">
   <button class="nav-btn" onclick="changeDay(-1)">← Indietro</button>
-  <span class="nav-label" id="nav-label">Domani</span>
+  <span class="nav-label" id="nav-label">Oggi</span>
   <button class="nav-btn" onclick="changeDay(1)">Avanti →</button>
 </div>
 <div class="tbar">
@@ -100,14 +105,12 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzWQb9MZJMt6HyQTbZAsU67TLNoCDYHswJgwIWMujRRjWIaGUdOmNw_e1sJmlbZSaPoQQ/exec";
 
-// Lista terapisti hardcoded — non dipende dallo script
 const TERAPISTI = ["Alessia","Erika","Elvira","Fabrizio","Federico","Gaetano","Giada","Manuel","Natale","Noemi","Peppe","Professore"];
-const TRATTAMENTI = ["Fisioterapia","Massaggio","Pilates","Postura","Tai Chi","Consulenza","Esame Baropodometrico","Consulenza e Esame Baropodometrico"];
-
-const ALIAS = {alessia:"Alessia",erika:"Erika",fabrizio:"Fabrizio",fede:"Federico",federico:"Federico",natale:"Natale",gaetano:"Gaetano",peppe:"Peppe",giada:"Giada",noemi:"Noemi",manu:"Manuel"};
+const TRATTAMENTI = ["Consulenza","Consulenza e Esame Baropodometrico","Esame Baropodometrico","Fisioterapia","Massaggio","Palestra","Pilates","Postura","Recupero Funzionale","Tai Chi"];
+const ALIAS = {alessia:"Alessia",erika:"Erika",elvira:"Elvira",fabrizio:"Fabrizio",fede:"Federico",federico:"Federico",natale:"Natale",gaetano:"Gaetano",peppe:"Peppe",giada:"Giada",noemi:"Noemi",manu:"Manuel",manuel:"Manuel"};
 const GIORNI_L = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
 
-let studio="Boccetta", offset=1, calData=null, slotsMap={};
+let studio="Boccetta", offset=0, calData=null, slotsMap={}, waData={};
 
 function parseAssenti(note){
   if(!note) return [];
@@ -161,135 +164,140 @@ function carica(){
     calData=data;
     if(!calData.assegnazioni) calData.assegnazioni={};
     document.getElementById('last-update').textContent='Aggiornato: '+new Date().toLocaleTimeString('it-IT');
-    render();
+    jsonp(SCRIPT_URL+'?action=getWhatsApp', function(waResp){
+      if(waResp && waResp.waData) waData=waResp.waData;
+      render();
+    });
   });
 }
 
 function getSaved(fascia, paziente){
-  return (calData.assegnazioni||{})[`${studio}|${fascia}|${paziente}`] || {terapista:'',prestazione:'',prezzo:''};
+  return (calData.assegnazioni||{})[`${studio}|${fascia}|${paziente}`] || {terapista:'',terapista2:'',prestazione:'',prezzo:''};
 }
 
-function updateLocal(fascia, paziente, terapista, trattamento, prezzo){
+function updateLocal(fascia, paziente, t1, t2, trattamento, prezzo){
   if(!calData.assegnazioni) calData.assegnazioni={};
-  calData.assegnazioni[`${studio}|${fascia}|${paziente}`] = {
-    terapista: terapista, prestazione: trattamento, prezzo: prezzo
-  };
+  calData.assegnazioni[`${studio}|${fascia}|${paziente}`]={terapista:t1,terapista2:t2,prestazione:trattamento,prezzo};
 }
 
-function salva(fascia, paziente, terapista, trattamento, prezzo){
-  updateLocal(fascia, paziente, terapista, trattamento, prezzo);
-  const params = new URLSearchParams({
+function salva(fascia, paziente, t1, t2, trattamento, prezzo){
+  updateLocal(fascia, paziente, t1, t2, trattamento, prezzo);
+  const params=new URLSearchParams({
     action:'save', data:calData.data, studio:studio,
     fascia:fascia, paziente:paziente,
-    terapista:terapista||'', prestazione:trattamento||'', prezzo:prezzo||''
+    terapista:t1||'', terapista2:t2||'',
+    prestazione:trattamento||'', prezzo:prezzo||''
   });
   jsonp(SCRIPT_URL+'?'+params.toString(), null);
 }
 
-// Controlla se due fasce orarie si sovrappongono
 function fasceOverlap(f1, f2){
-  const toMin = t => { const [h,m]=t.split(':'); return parseInt(h)*60+parseInt(m); };
-  const [s1,e1] = f1.split('–').map(toMin);
-  const [s2,e2] = f2.split('–').map(toMin);
-  return s1 < e2 && s2 < e1;
+  const toMin=t=>{const [h,m]=t.split(':');return parseInt(h)*60+parseInt(m);};
+  const p1=f1.split('–'), p2=f2.split('–');
+  if(p1.length<2||p2.length<2) return false;
+  const [s1,e1]=p1.map(toMin), [s2,e2]=p2.map(toMin);
+  return s1<e2 && s2<e1;
 }
 
-// Costruisce le opzioni terapista per un paziente escludendo quelli già usati in fascia (anche nell'altro studio)
-function buildOptsT(fascia, pazienteCorrente, assentiSlot){
-  const altroStudio = studio === 'Boccetta' ? 'Trento' : 'Boccetta';
-  const pazienti = slotsMap[fascia]?.pz || [];
+function getOccupatiSlot(fascia, pazienteEscluso){
+  const altro=studio==='Boccetta'?'Trento':'Boccetta';
+  const pz=slotsMap[fascia]?.pz||[];
+  const daCorrente=pz.filter(p=>p!==pazienteEscluso)
+    .flatMap(p=>{const s=getSaved(fascia,p);return[s.terapista,s.terapista2].filter(Boolean);});
+  const evA=(calData.studi||{})[altro]||[];
+  const daAltro=evA.filter(ev=>{
+    if(ev.tuttoCiorno) return false;
+    return fasceOverlap(fmtT(ev.inizio)+'–'+fmtT(ev.fine),fascia);
+  }).flatMap(ev=>{
+    const fA=fmtT(ev.inizio)+'–'+fmtT(ev.fine);
+    return (ev.titolo||'').replace(/^\([^)]+\)\s*/,'').split('/').map(s=>s.trim()).filter(Boolean)
+      .flatMap(p=>{const s=(calData.assegnazioni||{})[`${altro}|${fA}|${p}`];return s?[s.terapista,s.terapista2].filter(Boolean):[];});
+  });
+  return [...new Set([...daCorrente,...daAltro])];
+}
 
-  // Assegnati agli altri pazienti dello stesso studio nella stessa fascia
-  const assegnatiStudioCorrente = pazienti
-    .filter(p => p !== pazienteCorrente)
-    .map(p => getSaved(fascia, p).terapista)
-    .filter(t => t !== '');
+function buildOpts(fascia, paziente, assentiSlot, anche, selezionato){
+  const occupati=getOccupatiSlot(fascia,paziente);
+  const escludi=[...new Set([...assentiSlot,...occupati,...anche])];
+  const disp=TERAPISTI.filter(t=>!escludi.includes(t));
+  if(selezionato&&!disp.includes(selezionato)) disp.unshift(selezionato);
+  return disp.map(c=>`<option value="${c}"${selezionato===c?' selected':''}>${c}</option>`).join('');
+}
 
-  // Assegnati nell'altro studio in fasce che si sovrappongono
-  const eventiAltroStudio = (calData.studi||{})[altroStudio]||[];
-  const assegnatiAltroStudio = eventiAltroStudio
-    .filter(ev => {
-      if(ev.tuttoCiorno) return false;
-      const fAltro = fmtT(ev.inizio)+'–'+fmtT(ev.fine);
-      return fasceOverlap(fAltro, fascia);
-    })
-    .flatMap(ev => {
-      const fAltro = fmtT(ev.inizio)+'–'+fmtT(ev.fine);
-      const titolo = ev.titolo||'';
-      return titolo.replace(/^\([^)]+\)\s*/,'').split('/').map(s=>s.trim()).filter(Boolean)
-        .map(p => (calData.assegnazioni||{})[`${altroStudio}|${fAltro}|${p}`]?.terapista||'');
-    })
-    .filter(t => t !== '');
-
-  const tuttiOccupati = [...new Set([...assegnatiStudioCorrente, ...assegnatiAltroStudio])];
-  const disponibili = TERAPISTI.filter(t => !assentiSlot.includes(t) && !tuttiOccupati.includes(t));
-  const selezionato = getSaved(fascia, pazienteCorrente).terapista;
-  if(selezionato && !disponibili.includes(selezionato)) disponibili.unshift(selezionato);
-  return {optsT: disponibili.map(c=>`<option value="${c}"${selezionato===c?' selected':''}>${c}</option>`).join(''), selezionato};
+function findWALink(paziente){
+  const sStudio=studio==='Boccetta'?'Boccetta':'Via Trento';
+  const pLow=paziente.toLowerCase().trim();
+  for(const [key,val] of Object.entries(waData)){
+    const parts=key.split('|'); if(parts.length<2) continue;
+    const [nome,sedea]=parts;
+    if(sedea!==sStudio) continue;
+    const nLow=nome.toLowerCase();
+    const primo=nLow.split(' ')[0];
+    if(nLow.includes(pLow)||pLow.includes(primo)) return val;
+  }
+  return null;
 }
 
 function buildRow(p, pi, si, fascia, assentiSlot){
   const saved=getSaved(fascia,p);
-  const av=saved.terapista||'';
-  const tv=saved.prestazione||'';
-  const prv=saved.prezzo||'';
+  const av=saved.terapista||'', av2=saved.terapista2||'';
+  const tv=saved.prestazione||'', prv=saved.prezzo||'';
   const pEsc=p.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
   const fEsc=fascia.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-  const {optsT}=buildOptsT(fascia, p, assentiSlot);
+  const optsT1=buildOpts(fascia,p,assentiSlot,av2?[av2]:[],av);
+  const optsT2=buildOpts(fascia,p,assentiSlot,av?[av]:[],av2);
   const optsR=TRATTAMENTI.map(t=>`<option value="${t}"${tv===t?' selected':''}>${t}</option>`).join('');
+  const wa=findWALink(p);
+  const waHtml=wa
+    ?`<a class="wa-btn" href="${wa.linkWA}" target="_blank">WA</a>`
+    :`<button class="wa-btn nd" title="Non disponibile">WA</button>`;
   return `<div class="pc">
-    <div class="pc-row">
-      <input type="text" value="${p.replace(/"/g,'&quot;')}" placeholder="Nome paziente" onchange="aggiornaP(${si},${pi},this.value,'${fEsc}')">
-      <select class="${tv?'ok':''}" onchange="salvaTrattamento('${fEsc}','${pEsc}',this)">
-        <option value="">— Trattamento —</option>${optsR}
-      </select>
-    </div>
-    <div class="pc-row2">
-      <select class="${av?'ok':''}" onchange="salvaTerapista(${si},'${fEsc}','${pEsc}',this)">
-        <option value="">— Terapista —</option>${optsT}
-      </select>
-      <div class="prezzo-wrap${prv?' ok':''}">
-        <span class="euro">€</span>
-        <input type="text" placeholder="0" value="${prv}" onchange="salvaPrezzo('${fEsc}','${pEsc}',this.value,this.closest('.prezzo-wrap'))">
-      </div>
-    </div>
+    <div class="pn"><input type="text" value="${p.replace(/"/g,'&quot;')}" placeholder="Nome" onchange="aggiornaP(${si},${pi},this.value,'${fEsc}')"></div>
+    <div class="tr"><select class="${tv?'ok':''}" onchange="salvaTrattamento('${fEsc}','${pEsc}',this)"><option value="">— Trattamento —</option>${optsR}</select></div>
+    <div class="t1"><select class="${av?'ok':''}" onchange="salvaTerapista1(${si},'${fEsc}','${pEsc}',this)"><option value="">— T1 —</option>${optsT1}</select></div>
+    <div class="t2"><select class="${av2?'ok':''}" onchange="salvaTerapista2(${si},'${fEsc}','${pEsc}',this)"><option value="">— T2 —</option>${optsT2}</select></div>
+    <div class="pw"><div class="prezzo-wrap${prv?' ok':''}"><span class="euro">€</span><input type="text" placeholder="0" value="${prv}" onchange="salvaPrezzo('${fEsc}','${pEsc}',this.value,this.closest('.prezzo-wrap'))"></div></div>
+    <div class="wb">${waHtml}</div>
   </div>`;
 }
 
-// Ri-renderizza solo la plist dello slot dopo cambio terapista
 function rerenderSlot(si){
   const slots=Object.values(slotsMap).sort((a,b)=>a.f.localeCompare(b.f));
   const sl=slots[si]; if(!sl) return;
   const plistEl=document.querySelector(`#sb${si} .plist`); if(!plistEl) return;
-  const assA=parseAssenti(sl.note);
-  plistEl.innerHTML=sl.pz.map((p,pi)=>buildRow(p,pi,si,sl.f,assA)).join('');
+  plistEl.innerHTML=sl.pz.map((p,pi)=>buildRow(p,pi,si,sl.f,parseAssenti(sl.note))).join('');
 }
 
-function salvaTerapista(si, fascia, paziente, sel){
+function salvaTerapista1(si,fascia,paziente,sel){
   sel.className=sel.value?'ok':'';
   const s=getSaved(fascia,paziente);
-  salva(fascia, paziente, sel.value, s.prestazione, s.prezzo);
+  salva(fascia,paziente,sel.value,s.terapista2,s.prestazione,s.prezzo);
   rerenderSlot(si);
 }
 
-function salvaTrattamento(fascia, paziente, sel){
+function salvaTerapista2(si,fascia,paziente,sel){
   sel.className=sel.value?'ok':'';
   const s=getSaved(fascia,paziente);
-  salva(fascia, paziente, s.terapista, sel.value, s.prezzo);
+  salva(fascia,paziente,s.terapista,sel.value,s.prestazione,s.prezzo);
+  rerenderSlot(si);
 }
 
-function salvaPrezzo(fascia, paziente, val, wrap){
+function salvaTrattamento(fascia,paziente,sel){
+  sel.className=sel.value?'ok':'';
+  const s=getSaved(fascia,paziente);
+  salva(fascia,paziente,s.terapista,s.terapista2,sel.value,s.prezzo);
+}
+
+function salvaPrezzo(fascia,paziente,val,wrap){
   wrap.className='prezzo-wrap'+(val?' ok':'');
   const s=getSaved(fascia,paziente);
-  salva(fascia, paziente, s.terapista, s.prestazione, val);
+  salva(fascia,paziente,s.terapista,s.terapista2,s.prestazione,val);
 }
 
 function render(){
   if(!calData) return;
   const eventi=(calData.studi||{})[studio]||[];
-  const assegnazioni=calData.assegnazioni||{};
   document.getElementById('ttxt').textContent=(calData.data||'')+' — Studio '+studio;
-
   slotsMap={};
   eventi.forEach(ev=>{
     if(ev.tuttoCiorno) return;
@@ -300,19 +308,16 @@ function render(){
     if(nm&&/no\s+\w+/i.test(nm[1])) slotsMap[f].note=nm[1];
     t.replace(/^\([^)]+\)\s*/,'').split('/').map(s=>s.trim()).filter(Boolean).forEach(p=>slotsMap[f].pz.push(p));
   });
-
   const slots=Object.values(slotsMap).sort((a,b)=>a.f.localeCompare(b.f));
   const tuttiA=[...new Set(slots.flatMap(s=>parseAssenti(s.note)))];
   const abar=document.getElementById('abar');
-  if(tuttiA.length){ abar.className='abar show'; abar.innerHTML='Assenti: <strong>'+tuttiA.join(', ')+'</strong> — esclusi dai menu delle fasce interessate'; }
+  if(tuttiA.length){abar.className='abar show';abar.innerHTML='Assenti: <strong>'+tuttiA.join(', ')+'</strong> — esclusi dai menu delle fasce interessate';}
   else abar.className='abar';
-
   if(!slots.length){
     document.getElementById('main').innerHTML='<p class="msg">Nessun appuntamento per questo giorno.</p>';
     document.getElementById('cbadge').textContent='0 pazienti';
     return;
   }
-
   document.getElementById('main').innerHTML=slots.map((sl,si)=>{
     const assA=parseAssenti(sl.note);
     const cnt=sl.pz.length;
@@ -324,12 +329,11 @@ function render(){
         <span class="sc">${cnt} pazient${cnt===1?'e':'i'}</span>
       </div>
       <div class="sb2" id="sb${si}">
-        <div class="clabs"><span>Nome</span><span>Trattamento</span><span>Terapista</span><span>Prezzo</span></div>
+        <div class="clabs"><span>Nome</span><span>Trattamento</span><span>Terapista 1</span><span>Terapista 2</span><span>Prezzo</span><span>WA</span></div>
         <div class="plist">${rows}</div>
       </div>
     </div>`;
   }).join('');
-
   const tot=slots.reduce((a,s)=>a+s.pz.filter(p=>p.trim()).length,0);
   document.getElementById('cbadge').textContent=tot+' pazient'+(tot===1?'e':'i');
 }
