@@ -237,7 +237,11 @@ function findWALink(paziente){
 }
 
 function jsEsc(v){
-  return (v||'').toString().replace(/\/g,'\\').replace(/'/g,"\'").replace(/"/g,'&quot;').replace(/\n/g,' ');
+  return (v || '').toString()
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '&quot;')
+    .replace(/\n/g, ' ');
 }
 
 function segnaWAInviato(paziente, waKey){
