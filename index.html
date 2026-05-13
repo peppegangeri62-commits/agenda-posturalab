@@ -222,17 +222,38 @@ function buildOpts(fascia, paziente, assentiSlot, anche, selezionato){
   return disp.map(c=>`<option value="${c}"${selezionato===c?' selected':''}>${c}</option>`).join('');
 }
 
+function normalizzaNomeWA(v){
+  return (v || '').toString()
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b\d{7,}\b/g, '')
+    .replace(/[^a-z0-9\s.]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function findWALink(paziente){
-  const sStudio=studio==='Boccetta'?'Boccetta':'Via Trento';
-  const pLow=paziente.toLowerCase().trim();
-  for(const [key,val] of Object.entries(waData)){
-    const parts=key.split('|'); if(parts.length<2) continue;
-    const [nome,sedea]=parts;
-    if(sedea!==sStudio) continue;
-    const nLow=nome.toLowerCase();
-    const primo=nLow.split(' ')[0];
-    if(nLow.includes(pLow)||pLow.includes(primo)) return Object.assign({key:key},val);
+  const sStudio = studio === 'Boccetta' ? 'Boccetta' : 'Via Trento';
+
+  // Prima regola: match esatto con la chiave generata dal calendario.
+  // Questo evita errori gravi tipo "Lo Presti" che prende il link di "Lo Re".
+  const exactKey = paziente + '|' + sStudio;
+  if (waData[exactKey]) return Object.assign({ key: exactKey }, waData[exactKey]);
+
+  const pNorm = normalizzaNomeWA(paziente);
+
+  // Seconda regola: match normalizzato ma sempre ESATTO, mai per inclusione generica.
+  for (const [key, val] of Object.entries(waData)) {
+    const idx = key.lastIndexOf('|');
+    if (idx < 0) continue;
+    const nome = key.slice(0, idx);
+    const sedea = key.slice(idx + 1);
+    if (sedea !== sStudio) continue;
+
+    const nNorm = normalizzaNomeWA(nome);
+    if (nNorm === pNorm) return Object.assign({ key: key }, val);
   }
+
   return null;
 }
 
