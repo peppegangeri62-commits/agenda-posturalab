@@ -32,8 +32,6 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .sb2{padding:8px 10px}
 .sb2.hidden{display:none}
 .plist{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
-
-/* ── DESKTOP: 6 colonne ── */
 .clabs{display:grid;grid-template-columns:1.4fr 124px 106px 106px 70px 36px;gap:6px;padding:0 4px 5px;font-size:10px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
 .pc{display:grid;grid-template-columns:1.4fr 124px 106px 106px 70px 36px;gap:6px;align-items:center;background:#f7f9fc;border-radius:8px;padding:7px 8px;border:1px solid #e0e7ef}
 .pc .pn,.pc .tr,.pc .t1,.pc .t2,.pc .pw,.pc .wb{min-width:0}
@@ -52,8 +50,6 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .footer{display:flex;gap:8px;margin-top:12px}
 .prt{padding:8px 18px;border-radius:8px;border:none;background:#1F3864;color:#fff;font-size:13px;cursor:pointer;font-weight:600}
 .prt:hover{background:#2E75B6}
-
-/* ── MOBILE ── */
 @media(max-width:640px){
   body{padding:8px}
   .clabs{display:none}
@@ -104,45 +100,45 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzWQb9MZJMt6HyQTbZAsU67TLNoCDYHswJgwIWMujRRjWIaGUdOmNw_e1sJmlbZSaPoQQ/exec";
-
 const TERAPISTI = ["Alessia","Erika","Elvira","Fabrizio","Federico","Gaetano","Giada","Manuel","Natale","Noemi","Peppe","Professore"];
 const TRATTAMENTI = ["Consulenza","Consulenza e Esame Baropodometrico","Esame Baropodometrico","Fisioterapia","Massaggio","Palestra","Pilates","Postura","Recupero Funzionale","Tai Chi"];
 const ALIAS = {alessia:"Alessia",erika:"Erika",elvira:"Elvira",fabrizio:"Fabrizio",fede:"Federico",federico:"Federico",natale:"Natale",gaetano:"Gaetano",peppe:"Peppe",giada:"Giada",noemi:"Noemi",manu:"Manuel",manuel:"Manuel"};
 const GIORNI_L = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
 
 let studio="Boccetta", offset=0, calData=null, slotsMap={}, waData={};
+// Assenze valide per tutta la giornata (da eventi tutto-il-giorno)
+let assentiGlobali=[];
 
+// ── PARSE ASSENTI ─────────────────────────────────────────────
+// Riconosce tutti i formati comuni:
+//   "No Noemi"  "(No Noemi)"  "Noemi assente"  "assente Noemi"
+//   "Noemi manca"  "manca Noemi"  "Assente: Noemi"  ecc.
 function parseAssenti(note){
   if(!note) return [];
   const out=[];
-  for(const m of note.matchAll(/No\s+(\w+)/gi)){
-    const k=m[1].toLowerCase(); if(ALIAS[k]) out.push(ALIAS[k]);
-  }
+  const add=k=>{ const n=ALIAS[k.toLowerCase()]; if(n&&!out.includes(n)) out.push(n); };
+  // No [nome]
+  for(const m of note.matchAll(/\bno\s+(\w+)/gi)) add(m[1]);
+  // [nome] assente | [nome] manca
+  for(const m of note.matchAll(/\b(\w+)\s+(?:assente|manca)\b/gi)) add(m[1]);
+  // assente [nome] | manca [nome] | assente: [nome]
+  for(const m of note.matchAll(/\b(?:assente|manca)[:\s]+(\w+)/gi)) add(m[1]);
   return out;
 }
 
-function fmtT(iso){
-  const d=new Date(iso);
-  return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
-}
-
+function fmtT(iso){ const d=new Date(iso); return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); }
 function dayLabel(n){
-  if(n===0) return 'Oggi';
-  if(n===1) return 'Domani';
-  if(n===-1) return 'Ieri';
+  if(n===0) return 'Oggi'; if(n===1) return 'Domani'; if(n===-1) return 'Ieri';
   const d=new Date(); d.setDate(d.getDate()+n);
   return GIORNI_L[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1);
 }
-
 function changeDay(d){ offset+=d; carica(); }
-
 function setStudio(s){
   studio=s;
   document.querySelectorAll('.sb').forEach(b=>b.classList.toggle('active',b.textContent===`Studio ${s}`));
   if(calData) render(); else carica();
 }
-
-function jsonp(url, cb){
+function jsonp(url,cb){
   const name='cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
   const script=document.createElement('script');
   const timer=setTimeout(()=>{ delete window[name]; script.remove(); if(cb) cb(null,'timeout'); },10000);
@@ -150,17 +146,13 @@ function jsonp(url, cb){
   script.src=url+(url.includes('?')?'&':'?')+'callback='+name;
   document.head.appendChild(script);
 }
-
 function carica(){
   document.getElementById('nav-label').textContent=dayLabel(offset);
   document.getElementById('main').innerHTML='<div class="msg">Carico dal calendario...</div>';
   document.getElementById('cbadge').textContent='—';
   document.getElementById('abar').className='abar';
-  jsonp(SCRIPT_URL+'?giorni='+offset, function(data, err){
-    if(err||!data){
-      document.getElementById('main').innerHTML='<div class="err">Errore di connessione. Verifica la rete e riprova.</div>';
-      return;
-    }
+  jsonp(SCRIPT_URL+'?giorni='+offset, function(data,err){
+    if(err||!data){ document.getElementById('main').innerHTML='<div class="err">Errore di connessione. Verifica la rete e riprova.</div>'; return; }
     calData=data;
     if(!calData.assegnazioni) calData.assegnazioni={};
     waData=calData.waLinks||{};
@@ -168,118 +160,68 @@ function carica(){
     render();
   });
 }
-
-function getSaved(fascia, paziente){
-  return (calData.assegnazioni||{})[`${studio}|${fascia}|${paziente}`] || {terapista:'',terapista2:'',prestazione:'',prezzo:''};
-}
-
-function updateLocal(fascia, paziente, t1, t2, trattamento, prezzo){
+function getSaved(fascia,paziente){ return (calData.assegnazioni||{})[`${studio}|${fascia}|${paziente}`]||{terapista:'',terapista2:'',prestazione:'',prezzo:''}; }
+function updateLocal(fascia,paziente,t1,t2,trattamento,prezzo){
   if(!calData.assegnazioni) calData.assegnazioni={};
   calData.assegnazioni[`${studio}|${fascia}|${paziente}`]={terapista:t1,terapista2:t2,prestazione:trattamento,prezzo};
 }
-
-function salva(fascia, paziente, t1, t2, trattamento, prezzo){
-  updateLocal(fascia, paziente, t1, t2, trattamento, prezzo);
-  const params=new URLSearchParams({
-    action:'save', data:calData.data, studio:studio,
-    fascia:fascia, paziente:paziente,
-    terapista:t1||'', terapista2:t2||'',
-    prestazione:trattamento||'', prezzo:prezzo||''
-  });
-  jsonp(SCRIPT_URL+'?'+params.toString(), null);
+function salva(fascia,paziente,t1,t2,trattamento,prezzo){
+  updateLocal(fascia,paziente,t1,t2,trattamento,prezzo);
+  const params=new URLSearchParams({action:'save',data:calData.data,studio,fascia,paziente,terapista:t1||'',terapista2:t2||'',prestazione:trattamento||'',prezzo:prezzo||''});
+  jsonp(SCRIPT_URL+'?'+params.toString(),null);
 }
-
-function fasceOverlap(f1, f2){
-  const toMin=t=>{const [h,m]=t.split(':');return parseInt(h)*60+parseInt(m);};
-  const p1=f1.split('–'), p2=f2.split('–');
+function fasceOverlap(f1,f2){
+  const toMin=t=>{const[h,m]=t.split(':');return parseInt(h)*60+parseInt(m);};
+  const p1=f1.split('–'),p2=f2.split('–');
   if(p1.length<2||p2.length<2) return false;
-  const [s1,e1]=p1.map(toMin), [s2,e2]=p2.map(toMin);
-  return s1<e2 && s2<e1;
+  const[s1,e1]=p1.map(toMin),[s2,e2]=p2.map(toMin);
+  return s1<e2&&s2<e1;
 }
-
-function getOccupatiSlot(fascia, pazienteEscluso){
+function getOccupatiSlot(fascia,pazienteEscluso){
   const altro=studio==='Boccetta'?'Trento':'Boccetta';
   const pz=slotsMap[fascia]?.pz||[];
-  const daCorrente=pz.filter(p=>p!==pazienteEscluso)
-    .flatMap(p=>{const s=getSaved(fascia,p);return[s.terapista,s.terapista2].filter(Boolean);});
+  const daCorrente=pz.filter(p=>p!==pazienteEscluso).flatMap(p=>{const s=getSaved(fascia,p);return[s.terapista,s.terapista2].filter(Boolean);});
   const evA=(calData.studi||{})[altro]||[];
-  const daAltro=evA.filter(ev=>{
-    if(ev.tuttoCiorno) return false;
-    return fasceOverlap(fmtT(ev.inizio)+'–'+fmtT(ev.fine),fascia);
-  }).flatMap(ev=>{
+  const daAltro=evA.filter(ev=>{if(ev.tuttoCiorno)return false;return fasceOverlap(fmtT(ev.inizio)+'–'+fmtT(ev.fine),fascia);}).flatMap(ev=>{
     const fA=fmtT(ev.inizio)+'–'+fmtT(ev.fine);
-    return (ev.titolo||'').replace(/^\([^)]+\)\s*/,'').split('/').map(s=>s.trim()).filter(Boolean)
-      .flatMap(p=>{const s=(calData.assegnazioni||{})[`${altro}|${fA}|${p}`];return s?[s.terapista,s.terapista2].filter(Boolean):[];});
+    return(ev.titolo||'').replace(/^\([^)]+\)\s*/,'').split('/').map(s=>s.trim()).filter(Boolean).flatMap(p=>{const s=(calData.assegnazioni||{})[`${altro}|${fA}|${p}`];return s?[s.terapista,s.terapista2].filter(Boolean):[];});
   });
-  return [...new Set([...daCorrente,...daAltro])];
+  return[...new Set([...daCorrente,...daAltro])];
 }
-
-function buildOpts(fascia, paziente, assentiSlot, anche, selezionato){
+function buildOpts(fascia,paziente,assentiSlot,anche,selezionato){
   const occupati=getOccupatiSlot(fascia,paziente);
   const escludi=[...new Set([...assentiSlot,...occupati,...anche])];
   const disp=TERAPISTI.filter(t=>!escludi.includes(t));
   if(selezionato&&!disp.includes(selezionato)) disp.unshift(selezionato);
   return disp.map(c=>`<option value="${c}"${selezionato===c?' selected':''}>${c}</option>`).join('');
 }
-
 function normalizzaNomeWA(v){
-  return (v || '').toString()
-    .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/\b\d{7,}\b/g, '')
-    .replace(/[^a-z0-9\s.]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return(v||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\b\d{7,}\b/g,'').replace(/[^a-z0-9\s.]/g,' ').replace(/\s+/g,' ').trim();
 }
-
 function findWALink(paziente){
-  const sStudio = studio === 'Boccetta' ? 'Boccetta' : 'Via Trento';
-
-  // Prima regola: match esatto con la chiave generata dal calendario.
-  // Questo evita errori gravi tipo "Lo Presti" che prende il link di "Lo Re".
-  const exactKey = paziente + '|' + sStudio;
-  if (waData[exactKey]) return Object.assign({ key: exactKey }, waData[exactKey]);
-
-  const pNorm = normalizzaNomeWA(paziente);
-
-  // Seconda regola: match normalizzato ma sempre ESATTO, mai per inclusione generica.
-  for (const [key, val] of Object.entries(waData)) {
-    const idx = key.lastIndexOf('|');
-    if (idx < 0) continue;
-    const nome = key.slice(0, idx);
-    const sedea = key.slice(idx + 1);
-    if (sedea !== sStudio) continue;
-
-    const nNorm = normalizzaNomeWA(nome);
-    if (nNorm === pNorm) return Object.assign({ key: key }, val);
+  const sStudio=studio==='Boccetta'?'Boccetta':'Via Trento';
+  const exactKey=paziente+'|'+sStudio;
+  if(waData[exactKey]) return Object.assign({key:exactKey},waData[exactKey]);
+  const pNorm=normalizzaNomeWA(paziente);
+  for(const[key,val] of Object.entries(waData)){
+    const idx=key.lastIndexOf('|'); if(idx<0) continue;
+    const nome=key.slice(0,idx),sedea=key.slice(idx+1);
+    if(sedea!==sStudio) continue;
+    if(normalizzaNomeWA(nome)===pNorm) return Object.assign({key},val);
   }
-
   return null;
 }
-
-function jsEsc(v){
-  return (v || '').toString()
-    .replace(/\\/g, '\\\\')
-    .replace(/'/g, "\\'")
-    .replace(/"/g, '&quot;')
-    .replace(/\n/g, ' ');
-}
-
-function segnaWAInviato(paziente, waKey){
-  if(waKey && waData[waKey]) delete waData[waKey];
+function jsEsc(v){ return(v||'').toString().replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,' '); }
+function segnaWAInviato(paziente,waKey){
+  if(waKey&&waData[waKey]) delete waData[waKey];
   render();
-  const params=new URLSearchParams({
-    action:'setUltimaRichiesta',
-    paziente:paziente||''
-  });
-  jsonp(SCRIPT_URL+'?'+params.toString(), null);
+  const params=new URLSearchParams({action:'setUltimaRichiesta',paziente:paziente||''});
+  jsonp(SCRIPT_URL+'?'+params.toString(),null);
   return true;
 }
-
-function buildRow(p, pi, si, fascia, assentiSlot){
+function buildRow(p,pi,si,fascia,assentiSlot){
   const saved=getSaved(fascia,p);
-  const av=saved.terapista||'', av2=saved.terapista2||'';
-  const tv=saved.prestazione||'', prv=saved.prezzo||'';
+  const av=saved.terapista||'',av2=saved.terapista2||'',tv=saved.prestazione||'',prv=saved.prezzo||'';
   const pEsc=p.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
   const fEsc=fascia.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   const optsT1=buildOpts(fascia,p,assentiSlot,av2?[av2]:[],av);
@@ -298,44 +240,30 @@ function buildRow(p, pi, si, fascia, assentiSlot){
     <div class="wb">${waHtml}</div>
   </div>`;
 }
-
 function rerenderSlot(si){
   const slots=Object.values(slotsMap).sort((a,b)=>a.f.localeCompare(b.f));
   const sl=slots[si]; if(!sl) return;
   const plistEl=document.querySelector(`#sb${si} .plist`); if(!plistEl) return;
-  plistEl.innerHTML=sl.pz.map((p,pi)=>buildRow(p,pi,si,sl.f,parseAssenti(sl.note))).join('');
+  // Usa assentiGlobali + assenze di fascia
+  const assA=[...new Set([...assentiGlobali,...parseAssenti(sl.note)])];
+  plistEl.innerHTML=sl.pz.map((p,pi)=>buildRow(p,pi,si,sl.f,assA)).join('');
 }
-
-function salvaTerapista1(si,fascia,paziente,sel){
-  sel.className=sel.value?'ok':'';
-  const s=getSaved(fascia,paziente);
-  salva(fascia,paziente,sel.value,s.terapista2,s.prestazione,s.prezzo);
-  rerenderSlot(si);
-}
-
-function salvaTerapista2(si,fascia,paziente,sel){
-  sel.className=sel.value?'ok':'';
-  const s=getSaved(fascia,paziente);
-  salva(fascia,paziente,s.terapista,sel.value,s.prestazione,s.prezzo);
-  rerenderSlot(si);
-}
-
-function salvaTrattamento(fascia,paziente,sel){
-  sel.className=sel.value?'ok':'';
-  const s=getSaved(fascia,paziente);
-  salva(fascia,paziente,s.terapista,s.terapista2,sel.value,s.prezzo);
-}
-
-function salvaPrezzo(fascia,paziente,val,wrap){
-  wrap.className='prezzo-wrap'+(val?' ok':'');
-  const s=getSaved(fascia,paziente);
-  salva(fascia,paziente,s.terapista,s.terapista2,s.prestazione,val);
-}
+function salvaTerapista1(si,fascia,paziente,sel){ sel.className=sel.value?'ok':''; const s=getSaved(fascia,paziente); salva(fascia,paziente,sel.value,s.terapista2,s.prestazione,s.prezzo); rerenderSlot(si); }
+function salvaTerapista2(si,fascia,paziente,sel){ sel.className=sel.value?'ok':''; const s=getSaved(fascia,paziente); salva(fascia,paziente,s.terapista,sel.value,s.prestazione,s.prezzo); rerenderSlot(si); }
+function salvaTrattamento(fascia,paziente,sel){ sel.className=sel.value?'ok':''; const s=getSaved(fascia,paziente); salva(fascia,paziente,s.terapista,s.terapista2,sel.value,s.prezzo); }
+function salvaPrezzo(fascia,paziente,val,wrap){ wrap.className='prezzo-wrap'+(val?' ok':''); const s=getSaved(fascia,paziente); salva(fascia,paziente,s.terapista,s.terapista2,s.prestazione,val); }
 
 function render(){
   if(!calData) return;
   const eventi=(calData.studi||{})[studio]||[];
   document.getElementById('ttxt').textContent=(calData.data||'')+' — Studio '+studio;
+
+  // ── Assenze da eventi tutto-il-giorno ─────────────────────
+  // Legge tutti i formati: "(No Noemi)", "Noemi assente", "assente Noemi", ecc.
+  assentiGlobali=[...new Set(
+    eventi.filter(ev=>ev.tuttoCiorno).flatMap(ev=>parseAssenti(ev.titolo||''))
+  )];
+
   slotsMap={};
   eventi.forEach(ev=>{
     if(ev.tuttoCiorno) return;
@@ -347,17 +275,17 @@ function render(){
     t.replace(/^\([^)]+\)\s*/,'').split('/').map(s=>s.trim()).filter(Boolean).forEach(p=>slotsMap[f].pz.push(p));
   });
   const slots=Object.values(slotsMap).sort((a,b)=>a.f.localeCompare(b.f));
-  const tuttiA=[...new Set(slots.flatMap(s=>parseAssenti(s.note)))];
+
+  // Barra assenti: globali + per fascia
+  const tuttiA=[...new Set([...assentiGlobali,...slots.flatMap(s=>parseAssenti(s.note))])];
   const abar=document.getElementById('abar');
   if(tuttiA.length){abar.className='abar show';abar.innerHTML='Assenti: <strong>'+tuttiA.join(', ')+'</strong> — esclusi dai menu delle fasce interessate';}
   else abar.className='abar';
-  if(!slots.length){
-    document.getElementById('main').innerHTML='<p class="msg">Nessun appuntamento per questo giorno.</p>';
-    document.getElementById('cbadge').textContent='0 pazienti';
-    return;
-  }
+  if(!slots.length){ document.getElementById('main').innerHTML='<p class="msg">Nessun appuntamento per questo giorno.</p>'; document.getElementById('cbadge').textContent='0 pazienti'; return; }
+
   document.getElementById('main').innerHTML=slots.map((sl,si)=>{
-    const assA=parseAssenti(sl.note);
+    // Assenze di fascia + assenze globali di giornata
+    const assA=[...new Set([...assentiGlobali,...parseAssenti(sl.note)])];
     const cnt=sl.pz.length;
     const rows=sl.pz.map((p,pi)=>buildRow(p,pi,si,sl.f,assA)).join('');
     const pill=assA.length?`<span class="ap">Assenti: ${assA.join(', ')}</span>`:'';
@@ -377,7 +305,6 @@ function render(){
 }
 
 function aggiornaP(si,pi,val,fascia){ if(slotsMap[fascia]) slotsMap[fascia].pz[pi]=val; }
-
 carica();
 </script>
 </body>
