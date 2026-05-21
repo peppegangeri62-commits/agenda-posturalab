@@ -1,6 +1,6 @@
 {
   "name": "Agenda PosturalLAB",
-  "short_name": "PosturalLAB",
+  "short_name": "Agenda PosturalLAB",
   "description": "Gestionale agenda PosturalLAB",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
