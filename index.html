@@ -245,7 +245,7 @@ function rerenderSlot(si){
   const sl=slots[si]; if(!sl) return;
   const plistEl=document.querySelector(`#sb${si} .plist`); if(!plistEl) return;
   // Usa assentiGlobali + assenze di fascia
-  const assA=[...new Set([...assentiGlobali,...parseAssenti(sl.note)])];
+  const assA=[...new Set([...assentiGlobali,...parseAssenti(sl.note),...parseAssenti(sl.noteAltro||'')])];
   plistEl.innerHTML=sl.pz.map((p,pi)=>buildRow(p,pi,si,sl.f,assA)).join('');
 }
 function salvaTerapista1(si,fascia,paziente,sel){ sel.className=sel.value?'ok':''; const s=getSaved(fascia,paziente); salva(fascia,paziente,sel.value,s.terapista2,s.prestazione,s.prezzo); rerenderSlot(si); }
@@ -256,12 +256,13 @@ function salvaPrezzo(fascia,paziente,val,wrap){ wrap.className='prezzo-wrap'+(va
 function render(){
   if(!calData) return;
   const eventi=(calData.studi||{})[studio]||[];
+  const altroStudio=studio==='Boccetta'?'Trento':'Boccetta';
+  const eventiAltro=(calData.studi||{})[altroStudio]||[];
   document.getElementById('ttxt').textContent=(calData.data||'')+' — Studio '+studio;
 
-  // ── Assenze da eventi tutto-il-giorno ─────────────────────
-  // Legge tutti i formati: "(No Noemi)", "Noemi assente", "assente Noemi", ecc.
+  // ── Assenze globali da eventi tutto-il-giorno di ENTRAMBI gli studi ──
   assentiGlobali=[...new Set(
-    eventi.filter(ev=>ev.tuttoCiorno).flatMap(ev=>parseAssenti(ev.titolo||''))
+    [...eventi,...eventiAltro].filter(ev=>ev.tuttoCiorno).flatMap(ev=>parseAssenti(ev.titolo||''))
   )];
 
   slotsMap={};
@@ -274,10 +275,23 @@ function render(){
     if(nm&&/no\s+\w+/i.test(nm[1])) slotsMap[f].note=nm[1];
     t.replace(/^\([^)]+\)\s*/,'').split('/').map(s=>s.trim()).filter(Boolean).forEach(p=>slotsMap[f].pz.push(p));
   });
+
+  // ── Assenze da fasce dell'altro studio per ore sovrapposte ──
+  Object.keys(slotsMap).forEach(fascia=>{
+    eventiAltro.forEach(ev=>{
+      if(ev.tuttoCiorno) return;
+      const fA=fmtT(ev.inizio)+'–'+fmtT(ev.fine);
+      if(fA===fascia||fasceOverlap(fascia,fA)){
+        const nm=(ev.titolo||'').match(/^\(([^)]+)\)\s*/);
+        if(nm) slotsMap[fascia].noteAltro=(slotsMap[fascia].noteAltro||'')+' '+nm[1];
+      }
+    });
+  });
+
   const slots=Object.values(slotsMap).sort((a,b)=>a.f.localeCompare(b.f));
 
-  // Barra assenti: globali + per fascia
-  const tuttiA=[...new Set([...assentiGlobali,...slots.flatMap(s=>parseAssenti(s.note))])];
+  // Barra assenti: globali + per fascia (entrambi gli studi)
+  const tuttiA=[...new Set([...assentiGlobali,...slots.flatMap(s=>[...parseAssenti(s.note),...parseAssenti(s.noteAltro||'')])])];
   const abar=document.getElementById('abar');
   if(tuttiA.length){abar.className='abar show';abar.innerHTML='Assenti: <strong>'+tuttiA.join(', ')+'</strong> — esclusi dai menu delle fasce interessate';}
   else abar.className='abar';
@@ -285,7 +299,7 @@ function render(){
 
   document.getElementById('main').innerHTML=slots.map((sl,si)=>{
     // Assenze di fascia + assenze globali di giornata
-    const assA=[...new Set([...assentiGlobali,...parseAssenti(sl.note)])];
+    const assA=[...new Set([...assentiGlobali,...parseAssenti(sl.note),...parseAssenti(sl.noteAltro||'')])];
     const cnt=sl.pz.length;
     const rows=sl.pz.map((p,pi)=>buildRow(p,pi,si,sl.f,assA)).join('');
     const pill=assA.length?`<span class="ap">Assenti: ${assA.join(', ')}</span>`:'';
