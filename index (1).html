@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Agenda PosturalLAB">
+<meta name="theme-color" content="#1F3864">
+<title>Agenda PosturalLAB</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
+.header{background:#1F3864;color:#fff;padding:12px 16px;border-radius:10px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.header h1{font-size:17px;font-weight:600}
+.top{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.sb{padding:7px 16px;border-radius:8px;border:1.5px solid #ccc;background:#fff;color:#444;font-size:13px;font-weight:600;cursor:pointer}
+.sb.active{background:#1F3864;color:#fff;border-color:#1F3864}
+.nav{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.nav-btn{padding:6px 14px;border-radius:8px;border:1px solid #ccc;background:#fff;font-size:13px;cursor:pointer}
+.nav-btn:hover{background:#e8f0fe}
+.nav-label{font-size:14px;font-weight:600;flex:1;text-align:center;color:#1F3864}
+.tbar{background:#1F3864;color:#fff;padding:9px 14px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.tbar-title{font-size:13px;font-weight:600}
+.tbar-right{display:flex;align-items:center;gap:8px}
+.badge{background:#2E75B6;color:#fff;font-size:11px;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.rbtn{background:rgba(255,255,255,.2);border:none;color:#fff;font-size:12px;padding:3px 10px;border-radius:20px;cursor:pointer}
+.rbtn:hover{background:rgba(255,255,255,.35)}
+.abar{background:#fff3cd;border:1px solid #f0c040;border-radius:8px;padding:7px 12px;margin-bottom:10px;font-size:12px;color:#7a5800;display:none}
+.abar.show{display:block}
+.cbar{background:#fff;border:1px solid #dce3ed;border-radius:10px;padding:9px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.cbar-left{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cbar-title{font-size:11px;font-weight:700;color:#52606d;text-transform:uppercase;letter-spacing:.35px;margin-right:2px}
+.cstat{font-size:11px;font-weight:700;padding:4px 8px;border-radius:20px;white-space:nowrap;border:1px solid transparent}
+.cstat.verde{color:#256029;background:#e8f5e9;border-color:#a5d6a7}
+.cstat.rosso{color:#9f1d1d;background:#ffebee;border-color:#ef9a9a}
+.cstat.arancio{color:#9a4d00;background:#fff3e0;border-color:#ffcc80}
+.cstat.grigio{color:#52606d;background:#eef2f6;border-color:#cbd5df}
+.cfilter{border:1px solid #1F3864;background:#fff;color:#1F3864;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer}
+.cfilter.active{background:#1F3864;color:#fff}
+.cfilter:disabled{opacity:.5;cursor:default}
+.slot{border:1px solid #dce3ed;border-radius:10px;margin-bottom:10px;overflow:hidden;background:#fff}
+.sh{background:#1F3864;color:#fff;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:8px;user-select:none}
+.st{font-size:13px;font-weight:600;flex:1}
+.sc{font-size:11px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:20px;white-space:nowrap}
+.ap{font-size:11px;background:#c0392b;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.sb2{padding:8px 10px}
+.sb2.hidden{display:none}
+.plist{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.clabs{display:grid;grid-template-columns:1.4fr 124px 106px 106px 70px 36px;gap:6px;padding:0 4px 5px;font-size:10px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.pc{display:grid;grid-template-columns:1.4fr 124px 106px 106px 70px 36px;gap:6px;align-items:center;background:#f7f9fc;border-radius:8px;padding:7px 8px;border:1px solid #e0e7ef}
+.pc .pn,.pc .tr,.pc .t1,.pc .t2,.pc .pw,.pc .wb{min-width:0}
+.pc.censito{border-left:4px solid #2e7d32;background:#f1f8f3}
+.pc.non-censito{border-left:4px solid #c62828;background:#fff4f4}
+.pc.da-verificare{border-left:4px solid #ef6c00;background:#fff8e1}
+.pc.stato-nd{border-left:4px solid #90a4ae}
+.pn{display:flex;flex-direction:column;gap:4px}
+.stato-censimento{align-self:flex-start;font-size:10px;line-height:1;font-weight:700;padding:3px 6px;border-radius:12px;white-space:nowrap}
+.stato-censimento.censito{color:#256029;background:#dcedc8}
+.stato-censimento.non-censito{color:#9f1d1d;background:#ffcdd2}
+.stato-censimento.da-verificare{color:#9a4d00;background:#ffe0b2}
+.stato-censimento.stato-nd{color:#52606d;background:#e1e8ed}
+.pc input,.pc select{padding:5px 7px;border-radius:6px;border:1px solid #ccd6e0;background:#fff;font-size:12px;width:100%}
+.pc select.ok{border-color:#2E75B6;color:#1F3864;font-weight:600;background:#e8f0fe}
+.prezzo-wrap{display:flex;align-items:stretch;border:1px solid #ccd6e0;border-radius:6px;background:#fff;overflow:hidden;width:100%}
+.prezzo-wrap.ok{border-color:#2E75B6}
+.euro{padding:0 5px;font-size:11px;color:#888;background:#f0f4f8;border-right:1px solid #ccd6e0;display:flex;align-items:center}
+.prezzo-wrap input{border:none;padding:5px 5px;font-size:12px;background:transparent;width:100%;min-width:0}
+.prezzo-wrap input:focus{outline:none}
+.wa-btn{display:flex;align-items:center;justify-content:center;height:30px;width:100%;border-radius:6px;background:#25D366;color:#fff;text-decoration:none;font-size:11px;font-weight:700;border:none;cursor:pointer}
+.wa-btn:hover{background:#1da851}
+.wa-btn.nd{background:#b0bec5;cursor:default;pointer-events:none}
+.msg{font-size:14px;color:#888;padding:20px 0;text-align:center}
+.err{font-size:13px;color:#c0392b;padding:10px 14px;background:#fdf2f2;border-radius:8px;margin:8px 0;border:1px solid #f5c6c6}
+.footer{display:flex;gap:8px;margin-top:12px}
+.prt{padding:8px 18px;border-radius:8px;border:none;background:#1F3864;color:#fff;font-size:13px;cursor:pointer;font-weight:600}
+.prt:hover{background:#2E75B6}
+@media(max-width:640px){
+ body{padding:8px}
+ .clabs{display:none}
+ .pc{grid-template-columns:1fr 1fr;gap:6px}
+ .pc .pn{grid-column:1/-1}
+ .pc .tr{grid-column:1/-1}
+ .pc .t1{grid-column:1}
+ .pc .t2{grid-column:2}
+ .pc .pw{grid-column:1}
+ .pc .wb{grid-column:2;display:flex;align-items:center}
+ .pc input,.pc select,.prezzo-wrap input{font-size:13px;padding:8px 9px}
+ .euro{font-size:13px;padding:0 8px}
+ .wa-btn{height:40px;font-size:13px}
+}
+@media print{
+ .header span,.top,.nav,.tbar-right,.footer,.cfilter{display:none!important}
+ .tbar{border-radius:0}
+ .slot{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="header">
+ <h1>Agenda PosturalLAB</h1>
+ <span id="last-update" style="font-size:11px;opacity:.7"></span>
+</div>
+<div class="top">
+ <button class="sb active" onclick="setStudio('Boccetta')">Studio Boccetta</button>
+ <button class="sb" onclick="setStudio('Trento')">Studio Trento</button>
+</div>
+<div class="nav">
+ <button class="nav-btn" onclick="changeDay(-1)">← Indietro</button>
+ <span class="nav-label" id="nav-label">Oggi</span>
+ <button class="nav-btn" onclick="changeDay(1)">Avanti →</button>
+</div>
+<div class="tbar">
+ <span class="tbar-title" id="ttxt">—</span>
+ <div class="tbar-right">
+  <span class="badge" id="cbadge">—</span>
+  <button class="rbtn" onclick="carica()">↻ Aggiorna</button>
+ </div>
+</div>
+<div class="abar" id="abar"></div>
+<div class="cbar" id="cbar">
+ <div class="cbar-left" id="cbar-left">
+  <span class="cbar-title">Anagrafica</span>
+  <span class="cstat grigio">Controllo in corso…</span>
+ </div>
+ <button class="cfilter" id="cfilter" onclick="toggleFiltroCensimento()" disabled>Mostra solo da gestire</button>
+</div>
+<div id="main"></div>
+<div class="footer">
+ <button class="prt" onclick="window.print()">Stampa / PDF</button>
+</div>
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzWQb9MZJMt6HyQTbZAsU67TLNoCDYHswJgwIWMujRRjWIaGUdOmNw_e1sJmlbZSaPoQQ/exec";
+const CENSIMENTI_URL = "https://script.google.com/macros/s/AKfycbyaqS4XluN20Tj2s3RsLHVoRGnh9IyBM8qynzJwRvbKdGD5gNxZTO5LghveEwNVP6mX/exec";
+const TERAPISTI = ["Alessia","Erika","Elvira","Fabrizio","Federico","Gaetano","Giada","Manuel","Natale","Noemi","Peppe","Professore"];
+const TRATTAMENTI = ["Consulenza","Consulenza e Esame Baropodometrico","Esame Baropodometrico","Fisioterapia","Massaggio","Palestra","Pilates","Postura","Recupero Funzionale","Tai Chi"];
+const ALIAS = {alessia:"Alessia",erika:"Erika",elvira:"Elvira",fabrizio:"Fabrizio",fede:"Federico",federico:"Federico",natale:"Natale",gaetano:"Gaetano",peppe:"Peppe",giada:"Giada",noemi:"Noemi",manu:"Manuel",manuel:"Manuel",prof:"Professore",professore:"Professore"};
+const GIORNI_L = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
+let studio="Boccetta", offset=0, calData=null, slotsMap={}, waData={};
+let censimentiData={}, censimentiReady=false, censimentiLoading=false, censimentiError='', soloDaGestire=false;
+
+// Assenze valide per tutta la giornata (da eventi tutto-il-giorno)
+let assentiGlobali=[];
+
+// ── PARSE ASSENTI ─────────────────────────────────────────────
+// Riconosce formule elastiche, anche con più nomi separati da virgole o da "e":
+// "No Manu", "No Manu, Noemi", "manca Manu", "mancano Manu, Peppe",
+// "assente Noemi", "assenti Manu, Noemi", "ferie Erika", "permesso Fabrizio", ecc.
+function normalizzaAssenze(v){
+ return (v||'').toString()
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-z0-9\s]/g,' ')
+  .replace(/\s+/g,' ')
+  .trim();
+}
+
+function isNotaAssenza(note){
+ const testo=normalizzaAssenze(note);
+ return /\b(no|manca|mancano|assente|assenti|assenza|assenze|ferie|permesso|permessi|malattia)\b/i.test(testo);
+}
+
+function parseAssenti(note){
+ if(!note) return [];
+ const testo=normalizzaAssenze(note);
+ if(!isNotaAssenza(testo)) return [];
+
+ const out=[];
+ const aliasMap={};
+ TERAPISTI.forEach(t=>{ aliasMap[normalizzaAssenze(t)]=t; });
+ Object.entries(ALIAS).forEach(([k,v])=>{ aliasMap[normalizzaAssenze(k)]=v; });
+
+ Object.entries(aliasMap).forEach(([alias,nome])=>{
+  if(!alias) return;
+  const re=new RegExp('\\b'+alias.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i');
+  if(re.test(testo) && !out.includes(nome)) out.push(nome);
+ });
+
+ return out;
+}
+
+function fmtT(iso){ const d=new Date(iso); return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); }
+function dayLabel(n){
+ if(n===0) return 'Oggi'; if(n===1) return 'Domani'; if(n===-1) return 'Ieri';
+ const d=new Date(); d.setDate(d.getDate()+n);
+ return GIORNI_L[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1);
+}
+function changeDay(d){ offset+=d; carica(); }
+function setStudio(s){
+ studio=s;
+ document.querySelectorAll('.sb').forEach(b=>b.classList.toggle('active',b.textContent===`Studio ${s}`));
+ if(calData) render(); else carica();
+}
+function jsonp(url,cb){
+ const name='cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+ const script=document.createElement('script');
+ const timer=setTimeout(()=>{ delete window[name]; script.remove(); if(cb) cb(null,'timeout'); },10000);
+ window[name]=function(data){ clearTimeout(timer); delete window[name]; script.remove(); if(cb) cb(data); };
+ script.src=url+(url.includes('?')?'&':'?')+'callback='+name;
+ document.head.appendChild(script);
+}
+function dataIsoAgenda(){
+ const m=String((calData&&calData.data)||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+ if(m) return `${m[3]}-${m[2]}-${m[1]}`;
+ const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()+offset);
+ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function pulisciNomeCensimento(v){
+ return String(v||'')
+  .replace(/\([^)]*\)|\[[^\]]*\]|\{[^}]*\}/g,' ')
+  .replace(/(?:\+?39[\s.-]*)?(?:\d[\s.-]*){8,12}/g,' ')
+  .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu,' ')
+  .replace(/\b(cons|consulenza|accompagna|accompagnato|accompagnata|macchina|auto|ambulanza|taxi|treno)\.?\b/gi,' ')
+  .replace(/[|;,_]+/g,' ')
+  .replace(/\s+/g,' ')
+  .replace(/^[\s.\-–—]+|[\s\-–—]+$/g,'')
+  .trim();
+}
+function normalizzaCensimento(v){
+ return pulisciNomeCensimento(v)
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'')
+  .replace(/[’‘`']/g,' ')
+  .toLowerCase()
+  .replace(/[^a-z0-9 ]+/g,' ')
+  .replace(/\s+/g,' ')
+  .trim();
+}
+function chiaveCensimento(sede,nome){ return `${sede}|${normalizzaCensimento(nome)}`; }
+function caricaCensimenti(){
+ censimentiData={}; censimentiReady=false; censimentiLoading=true; censimentiError='';
+ aggiornaBarraCensimento();
+ const url=CENSIMENTI_URL+'?action=statoAgenda&date='+encodeURIComponent(dataIsoAgenda());
+ jsonp(url,function(data,err){
+  censimentiLoading=false;
+  if(err||!data||!data.ok||!Array.isArray(data.statiCensimento)){
+   censimentiError=(data&&data.errore)||'Controllo anagrafica non disponibile';
+   censimentiReady=false;
+   render();
+   return;
+  }
+  const priorita={CENSITO:1,DA_VERIFICARE:2,NON_CENSITO:3};
+  data.statiCensimento.forEach(item=>{
+   const key=`${item.sede}|${item.chiave||normalizzaCensimento(item.nome)}`;
+   const precedente=censimentiData[key];
+   if(!precedente||(priorita[item.stato]||0)>(priorita[precedente.stato]||0)) censimentiData[key]=item;
+  });
+  censimentiReady=true;
+  render();
+ });
+}
+function statoCensimento(paziente){
+ if(!censimentiReady) return {stato:'NON_DISPONIBILE',motivo:censimentiError||'Controllo in corso'};
+ return censimentiData[chiaveCensimento(studio,paziente)]||{stato:'NON_DISPONIBILE',motivo:'Voce operativa o non classificabile'};
+}
+function metaStatoCensimento(stato){
+ if(stato==='CENSITO') return {classe:'censito',icona:'🟢',etichetta:'Censito'};
+ if(stato==='NON_CENSITO') return {classe:'non-censito',icona:'🔴',etichetta:'Non censito'};
+ if(stato==='DA_VERIFICARE') return {classe:'da-verificare',icona:'🟠',etichetta:'Da verificare'};
+ return {classe:'stato-nd',icona:'⚪',etichetta:censimentiLoading?'Controllo…':'Stato non disponibile'};
+}
+function escapeHtml(v){
+ return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function toggleFiltroCensimento(){ soloDaGestire=!soloDaGestire; render(); }
+function pazienteDaGestire(p){
+ const stato=statoCensimento(p).stato;
+ return stato==='NON_CENSITO'||stato==='DA_VERIFICARE';
+}
+function righeVisibili(sl){
+ return sl.pz.map((p,pi)=>({p,pi})).filter(x=>x.p.trim()&&(!soloDaGestire||!censimentiReady||pazienteDaGestire(x.p)));
+}
+function getSlotsVisibili(){
+ return Object.values(slotsMap).sort((a,b)=>a.f.localeCompare(b.f)).filter(s=>righeVisibili(s).length);
+}
+function aggiornaBarraCensimento(){
+ const box=document.getElementById('cbar-left'),btn=document.getElementById('cfilter');
+ if(!box||!btn) return;
+ btn.disabled=!censimentiReady;
+ btn.className='cfilter'+(soloDaGestire?' active':'');
+ btn.textContent=soloDaGestire?'Mostra tutti':'Mostra solo da gestire';
+ if(censimentiLoading){box.innerHTML='<span class="cbar-title">Anagrafica</span><span class="cstat grigio">Controllo in corso…</span>';return;}
+ if(censimentiError){box.innerHTML='<span class="cbar-title">Anagrafica</span><span class="cstat rosso">Stato non disponibile</span>';return;}
+ const pazienti=Object.values(slotsMap).flatMap(s=>s.pz).filter(p=>p.trim());
+ const conteggi={CENSITO:0,NON_CENSITO:0,DA_VERIFICARE:0,NON_DISPONIBILE:0};
+ pazienti.forEach(p=>{const s=statoCensimento(p).stato;conteggi[s]=(conteggi[s]||0)+1;});
+ box.innerHTML='<span class="cbar-title">Anagrafica</span>'+
+  `<span class="cstat verde">🟢 ${conteggi.CENSITO} censiti</span>`+
+  `<span class="cstat rosso">🔴 ${conteggi.NON_CENSITO} non censiti</span>`+
+  `<span class="cstat arancio">🟠 ${conteggi.DA_VERIFICARE} da verificare</span>`+
+  (conteggi.NON_DISPONIBILE?`<span class="cstat grigio">⚪ ${conteggi.NON_DISPONIBILE} altre voci</span>`:'');
+}
+function carica(){
+ censimentiData={}; censimentiReady=false; censimentiLoading=true; censimentiError='';
+ document.getElementById('nav-label').textContent=dayLabel(offset);
+ document.getElementById('main').innerHTML='<div class="msg">Carico dal calendario...</div>';
+ document.getElementById('cbadge').textContent='—';
+ document.getElementById('abar').className='abar';
+ jsonp(SCRIPT_URL+'?giorni='+offset, function(data,err){
+  if(err||!data){ document.getElementById('main').innerHTML='<div class="err">Errore di connessione. Verifica la rete e riprova.</div>'; return; }
+  calData=data;
+  if(!calData.assegnazioni) calData.assegnazioni={};
+  waData=calData.waLinks||{};
+  document.getElementById('last-update').textContent='Aggiornato: '+new Date().toLocaleTimeString('it-IT');
+  render();
+  caricaCensimenti();
+ });
+}
+function getSaved(fascia,paziente){ return (calData.assegnazioni||{})[`${studio}|${fascia}|${paziente}`]||{terapista:'',terapista2:'',prestazione:'',prezzo:''}; }
+function updateLocal(fascia,paziente,t1,t2,trattamento,prezzo){
+ if(!calData.assegnazioni) calData.assegnazioni={};
+ calData.assegnazioni[`${studio}|${fascia}|${paziente}`]={terapista:t1,terapista2:t2,prestazione:trattamento,prezzo};
+}
+function salva(fascia,paziente,t1,t2,trattamento,prezzo){
+ updateLocal(fascia,paziente,t1,t2,trattamento,prezzo);
+ const params=new URLSearchParams({action:'save',data:calData.data,studio,fascia,paziente,terapista:t1||'',terapista2:t2||'',prestazione:trattamento||'',prezzo:prezzo||''});
+ jsonp(SCRIPT_URL+'?'+params.toString(),null);
+}
+function fasceOverlap(f1,f2){
+ const toMin=t=>{const[h,m]=t.split(':');return parseInt(h)*60+parseInt(m);};
+ const p1=f1.split('–'),p2=f2.split('–');
+ if(p1.length<2||p2.length<2) return false;
+ const[s1,e1]=p1.map(toMin),[s2,e2]=p2.map(toMin);
+ return s1<e2&&s2<e1;
+}
+function getOccupatiSlot(fascia,pazienteEscluso){
+ const altro=studio==='Boccetta'?'Trento':'Boccetta';
+ const pz=slotsMap[fascia]?.pz||[];
+ const daCorrente=pz.filter(p=>p!==pazienteEscluso).flatMap(p=>{const s=getSaved(fascia,p);return[s.terapista,s.terapista2].filter(Boolean);});
+ const evA=(calData.studi||{})[altro]||[];
+ const daAltro=evA.filter(ev=>{if(ev.tuttoCiorno)return false;return fasceOverlap(fmtT(ev.inizio)+'–'+fmtT(ev.fine),fascia);}).flatMap(ev=>{
+  const fA=fmtT(ev.inizio)+'–'+fmtT(ev.fine);
+  return(ev.titolo||'').replace(/^\([^)]+\)\s*/,'').split('/').map(s=>s.trim()).filter(Boolean).flatMap(p=>{const s=(calData.assegnazioni||{})[`${altro}|${fA}|${p}`];return s?[s.terapista,s.terapista2].filter(Boolean):[];});
+ });
+ return[...new Set([...daCorrente,...daAltro])];
+}
+function buildOpts(fascia,paziente,assentiSlot,anche,selezionato){
+ const occupati=getOccupatiSlot(fascia,paziente);
+ const escludi=[...new Set([...assentiSlot,...occupati,...anche])];
+ const disp=TERAPISTI.filter(t=>!escludi.includes(t));
+ if(selezionato&&!disp.includes(selezionato)) disp.unshift(selezionato);
+ return disp.map(c=>`<option value="${c}"${selezionato===c?' selected':''}>${c}</option>`).join('');
+}
+function normalizzaNomeWA(v){
+ return(v||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\b\d{7,}\b/g,'').replace(/[^a-z0-9\s.]/g,' ').replace(/\s+/g,' ').trim();
+}
+function findWALink(paziente){
+ const sStudio=studio==='Boccetta'?'Boccetta':'Via Trento';
+ const exactKey=paziente+'|'+sStudio;
+ if(waData[exactKey]) return Object.assign({key:exactKey},waData[exactKey]);
+ const pNorm=normalizzaNomeWA(paziente);
+ for(const[key,val] of Object.entries(waData)){
+  const idx=key.lastIndexOf('|'); if(idx<0) continue;
+  const nome=key.slice(0,idx),sedea=key.slice(idx+1);
+  if(sedea!==sStudio) continue;
+  if(normalizzaNomeWA(nome)===pNorm) return Object.assign({key},val);
+ }
+ return null;
+}
+function jsEsc(v){ return(v||'').toString().replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,' '); }
+function segnaWAInviato(paziente,waKey){
+ if(waKey&&waData[waKey]) delete waData[waKey];
+ render();
+ const params=new URLSearchParams({action:'setUltimaRichiesta',paziente:paziente||''});
+ jsonp(SCRIPT_URL+'?'+params.toString(),null);
+ return true;
+}
+function buildRow(p,pi,si,fascia,assentiSlot){
+ const saved=getSaved(fascia,p);
+ const av=saved.terapista||'',av2=saved.terapista2||'',tv=saved.prestazione||'',prv=saved.prezzo||'';
+ const pEsc=p.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+ const fEsc=fascia.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+ const optsT1=buildOpts(fascia,p,assentiSlot,av2?[av2]:[],av);
+ const optsT2=buildOpts(fascia,p,assentiSlot,av?[av]:[],av2);
+ const optsR=TRATTAMENTI.map(t=>`<option value="${t}"${tv===t?' selected':''}>${t}</option>`).join('');
+ const wa=findWALink(p);
+ const waHtml=wa
+  ?`<a class="wa-btn" href="${wa.linkWA}" target="_blank" rel="noopener" onclick="return segnaWAInviato('${pEsc}','${jsEsc(wa.key)}')">WA</a>`
+  :`<button class="wa-btn nd" title="Non disponibile">WA</button>`;
+ const infoStato=statoCensimento(p);
+ const metaStato=metaStatoCensimento(infoStato.stato);
+ return `<div class="pc ${metaStato.classe}">
+  <div class="pn"><span class="stato-censimento ${metaStato.classe}" title="${escapeHtml(infoStato.motivo)}">${metaStato.icona} ${metaStato.etichetta}</span><input type="text" value="${escapeHtml(p)}" placeholder="Nome" onchange="aggiornaP(${si},${pi},this.value,'${fEsc}')"></div>
+  <div class="tr"><select class="${tv?'ok':''}" onchange="salvaTrattamento('${fEsc}','${pEsc}',this)"><option value="">— Trattamento —</option>${optsR}</select></div>
+  <div class="t1"><select class="${av?'ok':''}" onchange="salvaTerapista1(${si},'${fEsc}','${pEsc}',this)"><option value="">— T1 —</option>${optsT1}</select></div>
+  <div class="t2"><select class="${av2?'ok':''}" onchange="salvaTerapista2(${si},'${fEsc}','${pEsc}',this)"><option value="">— T2 —</option>${optsT2}</select></div>
+  <div class="pw"><div class="prezzo-wrap${prv?' ok':''}"><span class="euro">€</span><input type="text" placeholder="0" value="${prv}" onchange="salvaPrezzo('${fEsc}','${pEsc}',this.value,this.closest('.prezzo-wrap'))"></div></div>
+  <div class="wb">${waHtml}</div>
+ </div>`;
+}
+function rerenderSlot(si){
+ const slots=getSlotsVisibili();
+ const sl=slots[si]; if(!sl) return;
+ const plistEl=document.querySelector(`#sb${si} .plist`); if(!plistEl) return;
+ // Usa assentiGlobali + assenze di fascia
+ const assA=[...new Set([...assentiGlobali,...parseAssenti(sl.note),...parseAssenti(sl.noteAltro||'')])];
+ plistEl.innerHTML=righeVisibili(sl).map(x=>buildRow(x.p,x.pi,si,sl.f,assA)).join('');
+}
+function salvaTerapista1(si,fascia,paziente,sel){ sel.className=sel.value?'ok':''; const s=getSaved(fascia,paziente); salva(fascia,paziente,sel.value,s.terapista2,s.prestazione,s.prezzo); rerenderSlot(si); }
+function salvaTerapista2(si,fascia,paziente,sel){ sel.className=sel.value?'ok':''; const s=getSaved(fascia,paziente); salva(fascia,paziente,s.terapista,sel.value,s.prestazione,s.prezzo); rerenderSlot(si); }
+function salvaTrattamento(fascia,paziente,sel){ sel.className=sel.value?'ok':''; const s=getSaved(fascia,paziente); salva(fascia,paziente,s.terapista,s.terapista2,sel.value,s.prezzo); }
+function salvaPrezzo(fascia,paziente,val,wrap){ wrap.className='prezzo-wrap'+(val?' ok':''); const s=getSaved(fascia,paziente); salva(fascia,paziente,s.terapista,s.terapista2,s.prestazione,val); }
+function render(){
+ if(!calData) return;
+ const eventi=(calData.studi||{})[studio]||[];
+ const altroStudio=studio==='Boccetta'?'Trento':'Boccetta';
+ const eventiAltro=(calData.studi||{})[altroStudio]||[];
+ document.getElementById('ttxt').textContent=(calData.data||'')+' — Studio '+studio;
+
+ // ── Assenze globali da eventi tutto-il-giorno di ENTRAMBI gli studi ──
+ assentiGlobali=[...new Set(
+  [...eventi,...eventiAltro].filter(ev=>ev.tuttoCiorno).flatMap(ev=>parseAssenti(ev.titolo||''))
+ )];
+
+ slotsMap={};
+ eventi.forEach(ev=>{
+  if(ev.tuttoCiorno) return;
+  const f=fmtT(ev.inizio)+'–'+fmtT(ev.fine);
+  const t=ev.titolo||'';
+  const nm=t.match(/^\(([^)]+)\)\s*/);
+  const titoloSenzaNota=t.replace(/^\([^)]+\)\s*/,'').trim();
+  const notaParentesi=(nm&&isNotaAssenza(nm[1]))?nm[1]:'';
+  const eventoSoloAssenza=isNotaAssenza(titoloSenzaNota)&&parseAssenti(titoloSenzaNota).length&&!titoloSenzaNota.includes('/');
+
+  if(!slotsMap[f]) slotsMap[f]={f,pz:[],note:''};
+  if(notaParentesi) slotsMap[f].note=((slotsMap[f].note||'')+' '+notaParentesi).trim();
+  if(eventoSoloAssenza){
+   slotsMap[f].note=((slotsMap[f].note||'')+' '+titoloSenzaNota).trim();
+   return;
+  }
+
+  titoloSenzaNota.split('/').map(s=>s.trim()).filter(Boolean).forEach(p=>slotsMap[f].pz.push(p));
+ });
+
+ // ── Assenze da fasce dell'altro studio per ore sovrapposte ──
+ Object.keys(slotsMap).forEach(fascia=>{
+  eventiAltro.forEach(ev=>{
+   if(ev.tuttoCiorno) return;
+   const fA=fmtT(ev.inizio)+'–'+fmtT(ev.fine);
+   if(fA===fascia||fasceOverlap(fascia,fA)){
+    const titoloAltro=ev.titolo||'';
+    const nm=titoloAltro.match(/^\(([^)]+)\)\s*/);
+    const titoloAltroSenzaNota=titoloAltro.replace(/^\([^)]+\)\s*/,'').trim();
+    if(nm&&isNotaAssenza(nm[1])) slotsMap[fascia].noteAltro=(slotsMap[fascia].noteAltro||'')+' '+nm[1];
+    if(isNotaAssenza(titoloAltroSenzaNota)&&parseAssenti(titoloAltroSenzaNota).length&&!titoloAltroSenzaNota.includes('/')) slotsMap[fascia].noteAltro=(slotsMap[fascia].noteAltro||'')+' '+titoloAltroSenzaNota;
+   }
+  });
+ });
+
+ const slots=Object.values(slotsMap).sort((a,b)=>a.f.localeCompare(b.f));
+
+ // Barra assenti: globali + per fascia (entrambi gli studi)
+ const tuttiA=[...new Set([...assentiGlobali,...slots.flatMap(s=>[...parseAssenti(s.note),...parseAssenti(s.noteAltro||'')])])];
+ const abar=document.getElementById('abar');
+ if(tuttiA.length){abar.className='abar show';abar.innerHTML='Assenti: <strong>'+tuttiA.join(', ')+'</strong> — esclusi dai menu delle fasce interessate';}
+ else abar.className='abar';
+
+ aggiornaBarraCensimento();
+ const slotsConPazienti=slots.filter(s=>s.pz.some(p=>p.trim()));
+ const slotsVisibili=getSlotsVisibili();
+ if(!slotsConPazienti.length){ document.getElementById('main').innerHTML='<p class="msg">Nessun appuntamento per questo giorno.</p>'; document.getElementById('cbadge').textContent='0 pazienti'; return; }
+ if(!slotsVisibili.length){ document.getElementById('main').innerHTML='<p class="msg">Nessun paziente non censito o da verificare.</p>'; document.getElementById('cbadge').textContent='0 da gestire'; return; }
+
+ document.getElementById('main').innerHTML=slotsVisibili.map((sl,si)=>{
+  // Assenze di fascia + assenze globali di giornata
+  const assA=[...new Set([...assentiGlobali,...parseAssenti(sl.note),...parseAssenti(sl.noteAltro||'')])];
+  const righe=righeVisibili(sl);
+  const cnt=righe.length;
+  const rows=righe.map(x=>buildRow(x.p,x.pi,si,sl.f,assA)).join('');
+  const pill=assA.length?`<span class="ap">Assenti: ${assA.join(', ')}</span>`:'';
+  return `<div class="slot">
+   <div class="sh" onclick="document.getElementById('sb${si}').classList.toggle('hidden')">
+    <span class="st">${sl.f}</span>${pill}
+    <span class="sc">${cnt} pazient${cnt===1?'e':'i'}</span>
+   </div>
+   <div class="sb2" id="sb${si}">
+    <div class="clabs"><span>Nome</span><span>Trattamento</span><span>Terapista 1</span><span>Terapista 2</span><span>Prezzo</span><span>WA</span></div>
+    <div class="plist">${rows}</div>
+   </div>
+  </div>`;
+ }).join('');
+
+ const tot=slotsVisibili.reduce((a,s)=>a+righeVisibili(s).length,0);
+ document.getElementById('cbadge').textContent=tot+(soloDaGestire?' da gestire':' pazient'+(tot===1?'e':'i'));
+}
+function aggiornaP(si,pi,val,fascia){ if(slotsMap[fascia]) slotsMap[fascia].pz[pi]=val; }
+carica();
+</script>
+</body>
+</html>
