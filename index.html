@@ -30,6 +30,17 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .rbtn:hover{background:rgba(255,255,255,.35)}
 .abar{background:#fff3cd;border:1px solid #f0c040;border-radius:8px;padding:7px 12px;margin-bottom:10px;font-size:12px;color:#7a5800;display:none}
 .abar.show{display:block}
+.cbar{background:#fff;border:1px solid #dce3ed;border-radius:10px;padding:9px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.cbar-left{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cbar-title{font-size:11px;font-weight:700;color:#52606d;text-transform:uppercase;letter-spacing:.35px;margin-right:2px}
+.cstat{font-size:11px;font-weight:700;padding:4px 8px;border-radius:20px;white-space:nowrap;border:1px solid transparent}
+.cstat.verde{color:#256029;background:#e8f5e9;border-color:#a5d6a7}
+.cstat.rosso{color:#9f1d1d;background:#ffebee;border-color:#ef9a9a}
+.cstat.arancio{color:#9a4d00;background:#fff3e0;border-color:#ffcc80}
+.cstat.grigio{color:#52606d;background:#eef2f6;border-color:#cbd5df}
+.cfilter{border:1px solid #1F3864;background:#fff;color:#1F3864;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer}
+.cfilter.active{background:#1F3864;color:#fff}
+.cfilter:disabled{opacity:.5;cursor:default}
 .slot{border:1px solid #dce3ed;border-radius:10px;margin-bottom:10px;overflow:hidden;background:#fff}
 .sh{background:#1F3864;color:#fff;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:8px;user-select:none}
 .st{font-size:13px;font-weight:600;flex:1}
@@ -41,6 +52,16 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .clabs{display:grid;grid-template-columns:1.4fr 124px 106px 106px 70px 36px;gap:6px;padding:0 4px 5px;font-size:10px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
 .pc{display:grid;grid-template-columns:1.4fr 124px 106px 106px 70px 36px;gap:6px;align-items:center;background:#f7f9fc;border-radius:8px;padding:7px 8px;border:1px solid #e0e7ef}
 .pc .pn,.pc .tr,.pc .t1,.pc .t2,.pc .pw,.pc .wb{min-width:0}
+.pc.censito{border-left:4px solid #2e7d32;background:#f1f8f3}
+.pc.non-censito{border-left:4px solid #c62828;background:#fff4f4}
+.pc.da-verificare{border-left:4px solid #ef6c00;background:#fff8e1}
+.pc.stato-nd{border-left:4px solid #90a4ae}
+.pn{display:flex;flex-direction:column;gap:4px}
+.stato-censimento{align-self:flex-start;font-size:10px;line-height:1;font-weight:700;padding:3px 6px;border-radius:12px;white-space:nowrap}
+.stato-censimento.censito{color:#256029;background:#dcedc8}
+.stato-censimento.non-censito{color:#9f1d1d;background:#ffcdd2}
+.stato-censimento.da-verificare{color:#9a4d00;background:#ffe0b2}
+.stato-censimento.stato-nd{color:#52606d;background:#e1e8ed}
 .pc input,.pc select{padding:5px 7px;border-radius:6px;border:1px solid #ccd6e0;background:#fff;font-size:12px;width:100%}
 .pc select.ok{border-color:#2E75B6;color:#1F3864;font-weight:600;background:#e8f0fe}
 .prezzo-wrap{display:flex;align-items:stretch;border:1px solid #ccd6e0;border-radius:6px;background:#fff;overflow:hidden;width:100%}
@@ -71,7 +92,7 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
  .wa-btn{height:40px;font-size:13px}
 }
 @media print{
- .header span,.top,.nav,.tbar-right,.footer{display:none!important}
+ .header span,.top,.nav,.tbar-right,.footer,.cfilter{display:none!important}
  .tbar{border-radius:0}
  .slot{break-inside:avoid}
 }
@@ -99,17 +120,26 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
  </div>
 </div>
 <div class="abar" id="abar"></div>
+<div class="cbar" id="cbar">
+ <div class="cbar-left" id="cbar-left">
+  <span class="cbar-title">Anagrafica</span>
+  <span class="cstat grigio">Controllo in corso…</span>
+ </div>
+ <button class="cfilter" id="cfilter" onclick="toggleFiltroCensimento()" disabled>Mostra solo da gestire</button>
+</div>
 <div id="main"></div>
 <div class="footer">
  <button class="prt" onclick="window.print()">Stampa / PDF</button>
 </div>
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzWQb9MZJMt6HyQTbZAsU67TLNoCDYHswJgwIWMujRRjWIaGUdOmNw_e1sJmlbZSaPoQQ/exec";
+const CENSIMENTI_URL = "https://script.google.com/macros/s/AKfycbyaqS4XluN20Tj2s3RsLHVoRGnh9IyBM8qynzJwRvbKdGD5gNxZTO5LghveEwNVP6mX/exec";
 const TERAPISTI = ["Alessia","Erika","Elvira","Fabrizio","Federico","Gaetano","Giada","Manuel","Natale","Noemi","Peppe","Professore"];
 const TRATTAMENTI = ["Consulenza","Consulenza e Esame Baropodometrico","Esame Baropodometrico","Fisioterapia","Massaggio","Palestra","Pilates","Postura","Recupero Funzionale","Tai Chi"];
 const ALIAS = {alessia:"Alessia",erika:"Erika",elvira:"Elvira",fabrizio:"Fabrizio",fede:"Federico",federico:"Federico",natale:"Natale",gaetano:"Gaetano",peppe:"Peppe",giada:"Giada",noemi:"Noemi",manu:"Manuel",manuel:"Manuel",prof:"Professore",professore:"Professore"};
 const GIORNI_L = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
 let studio="Boccetta", offset=0, calData=null, slotsMap={}, waData={};
+let censimentiData={}, censimentiReady=false, censimentiLoading=false, censimentiError='', soloDaGestire=false;
 
 // Assenze valide per tutta la giornata (da eventi tutto-il-giorno)
 let assentiGlobali=[];
@@ -172,7 +202,99 @@ function jsonp(url,cb){
  script.src=url+(url.includes('?')?'&':'?')+'callback='+name;
  document.head.appendChild(script);
 }
+function dataIsoAgenda(){
+ const m=String((calData&&calData.data)||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+ if(m) return `${m[3]}-${m[2]}-${m[1]}`;
+ const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()+offset);
+ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function pulisciNomeCensimento(v){
+ return String(v||'')
+  .replace(/\([^)]*\)|\[[^\]]*\]|\{[^}]*\}/g,' ')
+  .replace(/(?:\+?39[\s.-]*)?(?:\d[\s.-]*){8,12}/g,' ')
+  .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu,' ')
+  .replace(/\b(cons|consulenza|accompagna|accompagnato|accompagnata|macchina|auto|ambulanza|taxi|treno)\.?\b/gi,' ')
+  .replace(/[|;,_]+/g,' ')
+  .replace(/\s+/g,' ')
+  .replace(/^[\s.\-–—]+|[\s\-–—]+$/g,'')
+  .trim();
+}
+function normalizzaCensimento(v){
+ return pulisciNomeCensimento(v)
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'')
+  .replace(/[’‘`']/g,' ')
+  .toLowerCase()
+  .replace(/[^a-z0-9 ]+/g,' ')
+  .replace(/\s+/g,' ')
+  .trim();
+}
+function chiaveCensimento(sede,nome){ return `${sede}|${normalizzaCensimento(nome)}`; }
+function caricaCensimenti(){
+ censimentiData={}; censimentiReady=false; censimentiLoading=true; censimentiError='';
+ aggiornaBarraCensimento();
+ const url=CENSIMENTI_URL+'?action=statoAgenda&date='+encodeURIComponent(dataIsoAgenda());
+ jsonp(url,function(data,err){
+  censimentiLoading=false;
+  if(err||!data||!data.ok||!Array.isArray(data.statiCensimento)){
+   censimentiError=(data&&data.errore)||'Controllo anagrafica non disponibile';
+   censimentiReady=false;
+   render();
+   return;
+  }
+  const priorita={CENSITO:1,DA_VERIFICARE:2,NON_CENSITO:3};
+  data.statiCensimento.forEach(item=>{
+   const key=`${item.sede}|${item.chiave||normalizzaCensimento(item.nome)}`;
+   const precedente=censimentiData[key];
+   if(!precedente||(priorita[item.stato]||0)>(priorita[precedente.stato]||0)) censimentiData[key]=item;
+  });
+  censimentiReady=true;
+  render();
+ });
+}
+function statoCensimento(paziente){
+ if(!censimentiReady) return {stato:'NON_DISPONIBILE',motivo:censimentiError||'Controllo in corso'};
+ return censimentiData[chiaveCensimento(studio,paziente)]||{stato:'NON_DISPONIBILE',motivo:'Voce operativa o non classificabile'};
+}
+function metaStatoCensimento(stato){
+ if(stato==='CENSITO') return {classe:'censito',icona:'🟢',etichetta:'Censito'};
+ if(stato==='NON_CENSITO') return {classe:'non-censito',icona:'🔴',etichetta:'Non censito'};
+ if(stato==='DA_VERIFICARE') return {classe:'da-verificare',icona:'🟠',etichetta:'Da verificare'};
+ return {classe:'stato-nd',icona:'⚪',etichetta:censimentiLoading?'Controllo…':'Stato non disponibile'};
+}
+function escapeHtml(v){
+ return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function toggleFiltroCensimento(){ soloDaGestire=!soloDaGestire; render(); }
+function pazienteDaGestire(p){
+ const stato=statoCensimento(p).stato;
+ return stato==='NON_CENSITO'||stato==='DA_VERIFICARE';
+}
+function righeVisibili(sl){
+ return sl.pz.map((p,pi)=>({p,pi})).filter(x=>x.p.trim()&&(!soloDaGestire||!censimentiReady||pazienteDaGestire(x.p)));
+}
+function getSlotsVisibili(){
+ return Object.values(slotsMap).sort((a,b)=>a.f.localeCompare(b.f)).filter(s=>righeVisibili(s).length);
+}
+function aggiornaBarraCensimento(){
+ const box=document.getElementById('cbar-left'),btn=document.getElementById('cfilter');
+ if(!box||!btn) return;
+ btn.disabled=!censimentiReady;
+ btn.className='cfilter'+(soloDaGestire?' active':'');
+ btn.textContent=soloDaGestire?'Mostra tutti':'Mostra solo da gestire';
+ if(censimentiLoading){box.innerHTML='<span class="cbar-title">Anagrafica</span><span class="cstat grigio">Controllo in corso…</span>';return;}
+ if(censimentiError){box.innerHTML='<span class="cbar-title">Anagrafica</span><span class="cstat rosso">Stato non disponibile</span>';return;}
+ const pazienti=Object.values(slotsMap).flatMap(s=>s.pz).filter(p=>p.trim());
+ const conteggi={CENSITO:0,NON_CENSITO:0,DA_VERIFICARE:0,NON_DISPONIBILE:0};
+ pazienti.forEach(p=>{const s=statoCensimento(p).stato;conteggi[s]=(conteggi[s]||0)+1;});
+ box.innerHTML='<span class="cbar-title">Anagrafica</span>'+
+  `<span class="cstat verde">🟢 ${conteggi.CENSITO} censiti</span>`+
+  `<span class="cstat rosso">🔴 ${conteggi.NON_CENSITO} non censiti</span>`+
+  `<span class="cstat arancio">🟠 ${conteggi.DA_VERIFICARE} da verificare</span>`+
+  (conteggi.NON_DISPONIBILE?`<span class="cstat grigio">⚪ ${conteggi.NON_DISPONIBILE} altre voci</span>`:'');
+}
 function carica(){
+ censimentiData={}; censimentiReady=false; censimentiLoading=true; censimentiError='';
  document.getElementById('nav-label').textContent=dayLabel(offset);
  document.getElementById('main').innerHTML='<div class="msg">Carico dal calendario...</div>';
  document.getElementById('cbadge').textContent='—';
@@ -184,6 +306,7 @@ function carica(){
   waData=calData.waLinks||{};
   document.getElementById('last-update').textContent='Aggiornato: '+new Date().toLocaleTimeString('it-IT');
   render();
+  caricaCensimenti();
  });
 }
 function getSaved(fascia,paziente){ return (calData.assegnazioni||{})[`${studio}|${fascia}|${paziente}`]||{terapista:'',terapista2:'',prestazione:'',prezzo:''}; }
@@ -257,8 +380,10 @@ function buildRow(p,pi,si,fascia,assentiSlot){
  const waHtml=wa
   ?`<a class="wa-btn" href="${wa.linkWA}" target="_blank" rel="noopener" onclick="return segnaWAInviato('${pEsc}','${jsEsc(wa.key)}')">WA</a>`
   :`<button class="wa-btn nd" title="Non disponibile">WA</button>`;
- return `<div class="pc">
-  <div class="pn"><input type="text" value="${p.replace(/"/g,'&quot;')}" placeholder="Nome" onchange="aggiornaP(${si},${pi},this.value,'${fEsc}')"></div>
+ const infoStato=statoCensimento(p);
+ const metaStato=metaStatoCensimento(infoStato.stato);
+ return `<div class="pc ${metaStato.classe}">
+  <div class="pn"><span class="stato-censimento ${metaStato.classe}" title="${escapeHtml(infoStato.motivo)}">${metaStato.icona} ${metaStato.etichetta}</span><input type="text" value="${escapeHtml(p)}" placeholder="Nome" onchange="aggiornaP(${si},${pi},this.value,'${fEsc}')"></div>
   <div class="tr"><select class="${tv?'ok':''}" onchange="salvaTrattamento('${fEsc}','${pEsc}',this)"><option value="">— Trattamento —</option>${optsR}</select></div>
   <div class="t1"><select class="${av?'ok':''}" onchange="salvaTerapista1(${si},'${fEsc}','${pEsc}',this)"><option value="">— T1 —</option>${optsT1}</select></div>
   <div class="t2"><select class="${av2?'ok':''}" onchange="salvaTerapista2(${si},'${fEsc}','${pEsc}',this)"><option value="">— T2 —</option>${optsT2}</select></div>
@@ -267,12 +392,12 @@ function buildRow(p,pi,si,fascia,assentiSlot){
  </div>`;
 }
 function rerenderSlot(si){
- const slots=Object.values(slotsMap).sort((a,b)=>a.f.localeCompare(b.f)).filter(s=>s.pz.some(p=>p.trim()));
+ const slots=getSlotsVisibili();
  const sl=slots[si]; if(!sl) return;
  const plistEl=document.querySelector(`#sb${si} .plist`); if(!plistEl) return;
  // Usa assentiGlobali + assenze di fascia
  const assA=[...new Set([...assentiGlobali,...parseAssenti(sl.note),...parseAssenti(sl.noteAltro||'')])];
- plistEl.innerHTML=sl.pz.map((p,pi)=>buildRow(p,pi,si,sl.f,assA)).join('');
+ plistEl.innerHTML=righeVisibili(sl).map(x=>buildRow(x.p,x.pi,si,sl.f,assA)).join('');
 }
 function salvaTerapista1(si,fascia,paziente,sel){ sel.className=sel.value?'ok':''; const s=getSaved(fascia,paziente); salva(fascia,paziente,sel.value,s.terapista2,s.prestazione,s.prezzo); rerenderSlot(si); }
 function salvaTerapista2(si,fascia,paziente,sel){ sel.className=sel.value?'ok':''; const s=getSaved(fascia,paziente); salva(fascia,paziente,s.terapista,sel.value,s.prestazione,s.prezzo); rerenderSlot(si); }
@@ -333,14 +458,18 @@ function render(){
  if(tuttiA.length){abar.className='abar show';abar.innerHTML='Assenti: <strong>'+tuttiA.join(', ')+'</strong> — esclusi dai menu delle fasce interessate';}
  else abar.className='abar';
 
- const slotsVisibili=slots.filter(s=>s.pz.some(p=>p.trim()));
- if(!slotsVisibili.length){ document.getElementById('main').innerHTML='<p class="msg">Nessun appuntamento per questo giorno.</p>'; document.getElementById('cbadge').textContent='0 pazienti'; return; }
+ aggiornaBarraCensimento();
+ const slotsConPazienti=slots.filter(s=>s.pz.some(p=>p.trim()));
+ const slotsVisibili=getSlotsVisibili();
+ if(!slotsConPazienti.length){ document.getElementById('main').innerHTML='<p class="msg">Nessun appuntamento per questo giorno.</p>'; document.getElementById('cbadge').textContent='0 pazienti'; return; }
+ if(!slotsVisibili.length){ document.getElementById('main').innerHTML='<p class="msg">Nessun paziente non censito o da verificare.</p>'; document.getElementById('cbadge').textContent='0 da gestire'; return; }
 
  document.getElementById('main').innerHTML=slotsVisibili.map((sl,si)=>{
   // Assenze di fascia + assenze globali di giornata
   const assA=[...new Set([...assentiGlobali,...parseAssenti(sl.note),...parseAssenti(sl.noteAltro||'')])];
-  const cnt=sl.pz.length;
-  const rows=sl.pz.map((p,pi)=>buildRow(p,pi,si,sl.f,assA)).join('');
+  const righe=righeVisibili(sl);
+  const cnt=righe.length;
+  const rows=righe.map(x=>buildRow(x.p,x.pi,si,sl.f,assA)).join('');
   const pill=assA.length?`<span class="ap">Assenti: ${assA.join(', ')}</span>`:'';
   return `<div class="slot">
    <div class="sh" onclick="document.getElementById('sb${si}').classList.toggle('hidden')">
@@ -354,8 +483,8 @@ function render(){
   </div>`;
  }).join('');
 
- const tot=slotsVisibili.reduce((a,s)=>a+s.pz.filter(p=>p.trim()).length,0);
- document.getElementById('cbadge').textContent=tot+' pazient'+(tot===1?'e':'i');
+ const tot=slotsVisibili.reduce((a,s)=>a+righeVisibili(s).length,0);
+ document.getElementById('cbadge').textContent=tot+(soloDaGestire?' da gestire':' pazient'+(tot===1?'e':'i'));
 }
 function aggiornaP(si,pi,val,fascia){ if(slotsMap[fascia]) slotsMap[fascia].pz[pi]=val; }
 carica();
