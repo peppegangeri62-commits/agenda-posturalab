@@ -49,9 +49,9 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .sb2{padding:8px 10px}
 .sb2.hidden{display:none}
 .plist{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
-.clabs{display:grid;grid-template-columns:1.4fr 124px 106px 106px 70px 36px;gap:6px;padding:0 4px 5px;font-size:10px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-.pc{display:grid;grid-template-columns:1.4fr 124px 106px 106px 70px 36px;gap:6px;align-items:center;background:#f7f9fc;border-radius:8px;padding:7px 8px;border:1px solid #e0e7ef}
-.pc .pn,.pc .tr,.pc .t1,.pc .t2,.pc .pw,.pc .wb{min-width:0}
+.clabs{display:grid;grid-template-columns:1.4fr 124px 106px 106px 70px 118px;gap:6px;padding:0 4px 5px;font-size:10px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.pc{display:grid;grid-template-columns:1.4fr 124px 106px 106px 70px 118px;gap:6px;align-items:center;background:#f7f9fc;border-radius:8px;padding:7px 8px;border:1px solid #e0e7ef}
+.pc .pn,.pc .tr,.pc .t1,.pc .t2,.pc .pw,.pc .es{min-width:0}
 .pc.censito{border-left:4px solid #2e7d32;background:#f1f8f3}
 .pc.non-censito{border-left:4px solid #c62828;background:#fff4f4}
 .pc.da-verificare{border-left:4px solid #ef6c00;background:#fff8e1}
@@ -62,6 +62,8 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .stato-censimento.non-censito{color:#9f1d1d;background:#ffcdd2}
 .stato-censimento.da-verificare{color:#9a4d00;background:#ffe0b2}
 .stato-censimento.stato-nd{color:#52606d;background:#e1e8ed}
+.stato-censimento.link{cursor:pointer;text-decoration:none;border:1px solid rgba(37,96,41,.18)}
+.stato-censimento.link:hover{filter:brightness(.96);box-shadow:0 0 0 2px rgba(46,125,50,.08)}
 .pc input,.pc select{padding:5px 7px;border-radius:6px;border:1px solid #ccd6e0;background:#fff;font-size:12px;width:100%}
 .pc select.ok{border-color:#2E75B6;color:#1F3864;font-weight:600;background:#e8f0fe}
 .prezzo-wrap{display:flex;align-items:stretch;border:1px solid #ccd6e0;border-radius:6px;background:#fff;overflow:hidden;width:100%}
@@ -69,9 +71,13 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .euro{padding:0 5px;font-size:11px;color:#888;background:#f0f4f8;border-right:1px solid #ccd6e0;display:flex;align-items:center}
 .prezzo-wrap input{border:none;padding:5px 5px;font-size:12px;background:transparent;width:100%;min-width:0}
 .prezzo-wrap input:focus{outline:none}
-.wa-btn{display:flex;align-items:center;justify-content:center;height:30px;width:100%;border-radius:6px;background:#25D366;color:#fff;text-decoration:none;font-size:11px;font-weight:700;border:none;cursor:pointer}
-.wa-btn:hover{background:#1da851}
-.wa-btn.nd{background:#b0bec5;cursor:default;pointer-events:none}
+.esito-select{font-weight:700;transition:background .15s,border-color .15s,color .15s}
+.esito-select.esito-da-confermare{color:#52606d;background:#eef2f6;border-color:#cbd5df}
+.esito-select.esito-eseguita{color:#256029;background:#e8f5e9;border-color:#81c784}
+.esito-select.esito-assente{color:#9f1d1d;background:#ffebee;border-color:#ef9a9a}
+.esito-select.esito-spostata,.esito-select.esito-annullata{color:#9a4d00;background:#fff3e0;border-color:#ffb74d}
+.esito-select.esito-non-conclusa{color:#7a5800;background:#fff8d6;border-color:#e2c14c}
+.esito-nd{display:flex;align-items:center;justify-content:center;width:100%;min-height:30px;border:1px dashed #cbd5df;border-radius:6px;color:#78909c;background:#f4f7f9;font-size:11px;font-weight:700}
 .msg{font-size:14px;color:#888;padding:20px 0;text-align:center}
 .err{font-size:13px;color:#c0392b;padding:10px 14px;background:#fdf2f2;border-radius:8px;margin:8px 0;border:1px solid #f5c6c6}
 .footer{display:flex;gap:8px;margin-top:12px}
@@ -86,10 +92,10 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
  .pc .t1{grid-column:1}
  .pc .t2{grid-column:2}
  .pc .pw{grid-column:1}
- .pc .wb{grid-column:2;display:flex;align-items:center}
+ .pc .es{grid-column:2;display:flex;align-items:center}
  .pc input,.pc select,.prezzo-wrap input{font-size:13px;padding:8px 9px}
  .euro{font-size:13px;padding:0 8px}
- .wa-btn{height:40px;font-size:13px}
+ .esito-select,.esito-nd{min-height:40px;font-size:13px}
 }
 @media print{
  .header span,.top,.nav,.tbar-right,.footer,.cfilter{display:none!important}
@@ -134,11 +140,20 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzWQb9MZJMt6HyQTbZAsU67TLNoCDYHswJgwIWMujRRjWIaGUdOmNw_e1sJmlbZSaPoQQ/exec";
 const CENSIMENTI_URL = "https://script.google.com/macros/s/AKfycbyaqS4XluN20Tj2s3RsLHVoRGnh9IyBM8qynzJwRvbKdGD5gNxZTO5LghveEwNVP6mX/exec";
+const PAZIENTI_URL = "https://docs.google.com/spreadsheets/d/1KZ2D5vxZk1PVeDZwNQvw1TCEILGw1zNuOb7NakErzvo/edit";
 const TERAPISTI = ["Alessia","Erika","Elvira","Fabrizio","Federico","Gaetano","Giada","Manuel","Natale","Noemi","Peppe","Professore"];
 const TRATTAMENTI = ["Consulenza","Consulenza e Esame Baropodometrico","Esame Baropodometrico","Fisioterapia","Massaggio","Palestra","Pilates","Postura","Recupero Funzionale","Tai Chi"];
+const ESITI_VISITA = [
+ {value:"DA_CONFERMARE",label:"Da confermare"},
+ {value:"ESEGUITA",label:"✓ Eseguita"},
+ {value:"ASSENTE",label:"✕ Assente"},
+ {value:"SPOSTATA",label:"↪ Spostata"},
+ {value:"ANNULLATA",label:"Annullata"},
+ {value:"NON_CONCLUSA",label:"Non conclusa"}
+];
 const ALIAS = {alessia:"Alessia",erika:"Erika",elvira:"Elvira",fabrizio:"Fabrizio",fede:"Federico",federico:"Federico",natale:"Natale",gaetano:"Gaetano",peppe:"Peppe",giada:"Giada",noemi:"Noemi",manu:"Manuel",manuel:"Manuel",prof:"Professore",professore:"Professore"};
 const GIORNI_L = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
-let studio="Boccetta", offset=0, calData=null, slotsMap={}, waData={};
+let studio="Boccetta", offset=0, calData=null, slotsMap={};
 let censimentiData={}, censimentiReady=false, censimentiLoading=false, censimentiError='', soloDaGestire=false;
 
 // Assenze valide per tutta la giornata (da eventi tutto-il-giorno)
@@ -303,13 +318,22 @@ function carica(){
   if(err||!data){ document.getElementById('main').innerHTML='<div class="err">Errore di connessione. Verifica la rete e riprova.</div>'; return; }
   calData=data;
   if(!calData.assegnazioni) calData.assegnazioni={};
-  waData=calData.waLinks||{};
+  if(!calData.esitiVisita) calData.esitiVisita={};
   document.getElementById('last-update').textContent='Aggiornato: '+new Date().toLocaleTimeString('it-IT');
   render();
   caricaCensimenti();
  });
 }
 function getSaved(fascia,paziente){ return (calData.assegnazioni||{})[`${studio}|${fascia}|${paziente}`]||{terapista:'',terapista2:'',prestazione:'',prezzo:''}; }
+function chiaveRigaAgenda(fascia,paziente){ return `${studio}|${fascia}|${paziente}`; }
+function getEsitoVisita(fascia,paziente){
+ const salvato=(calData.esitiVisita||{})[chiaveRigaAgenda(fascia,paziente)];
+ return (salvato&&salvato.esito)||'DA_CONFERMARE';
+}
+function updateEsitoLocal(fascia,paziente,esito){
+ if(!calData.esitiVisita) calData.esitiVisita={};
+ calData.esitiVisita[chiaveRigaAgenda(fascia,paziente)]={esito};
+}
 function updateLocal(fascia,paziente,t1,t2,trattamento,prezzo){
  if(!calData.assegnazioni) calData.assegnazioni={};
  calData.assegnazioni[`${studio}|${fascia}|${paziente}`]={terapista:t1,terapista2:t2,prestazione:trattamento,prezzo};
@@ -344,29 +368,33 @@ function buildOpts(fascia,paziente,assentiSlot,anche,selezionato){
  if(selezionato&&!disp.includes(selezionato)) disp.unshift(selezionato);
  return disp.map(c=>`<option value="${c}"${selezionato===c?' selected':''}>${c}</option>`).join('');
 }
-function normalizzaNomeWA(v){
- return(v||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\b\d{7,}\b/g,'').replace(/[^a-z0-9\s.]/g,' ').replace(/\s+/g,' ').trim();
+function classeEsitoVisita(esito){
+ const map={
+  DA_CONFERMARE:'esito-da-confermare',ESEGUITA:'esito-eseguita',
+  ASSENTE:'esito-assente',SPOSTATA:'esito-spostata',
+  ANNULLATA:'esito-annullata',NON_CONCLUSA:'esito-non-conclusa'
+ };
+ return map[esito]||'esito-da-confermare';
 }
-function findWALink(paziente){
- const sStudio=studio==='Boccetta'?'Boccetta':'Via Trento';
- const exactKey=paziente+'|'+sStudio;
- if(waData[exactKey]) return Object.assign({key:exactKey},waData[exactKey]);
- const pNorm=normalizzaNomeWA(paziente);
- for(const[key,val] of Object.entries(waData)){
-  const idx=key.lastIndexOf('|'); if(idx<0) continue;
-  const nome=key.slice(0,idx),sedea=key.slice(idx+1);
-  if(sedea!==sStudio) continue;
-  if(normalizzaNomeWA(nome)===pNorm) return Object.assign({key},val);
- }
- return null;
-}
-function jsEsc(v){ return(v||'').toString().replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,' '); }
-function segnaWAInviato(paziente,waKey){
- if(waKey&&waData[waKey]) delete waData[waKey];
- render();
- const params=new URLSearchParams({action:'setUltimaRichiesta',paziente:paziente||''});
- jsonp(SCRIPT_URL+'?'+params.toString(),null);
- return true;
+function aggiornaClasseEsito(sel){ sel.className='esito-select '+classeEsitoVisita(sel.value); }
+function salvaEsitoVisita(fascia,paziente,sel){
+ const precedente=getEsitoVisita(fascia,paziente);
+ const nuovo=sel.value||'DA_CONFERMARE';
+ updateEsitoLocal(fascia,paziente,nuovo);
+ aggiornaClasseEsito(sel);
+ sel.disabled=true;
+ const params=new URLSearchParams({
+  action:'saveEsito',data:calData.data,studio,fascia,paziente,esito:nuovo
+ });
+ jsonp(SCRIPT_URL+'?'+params.toString(),function(data,err){
+  sel.disabled=false;
+  if(err||!data||!data.ok){
+   updateEsitoLocal(fascia,paziente,precedente);
+   sel.value=precedente;
+   aggiornaClasseEsito(sel);
+   alert('Esito non salvato. Riprova con Aggiorna.');
+  }
+ });
 }
 function buildRow(p,pi,si,fascia,assentiSlot){
  const saved=getSaved(fascia,p);
@@ -376,19 +404,23 @@ function buildRow(p,pi,si,fascia,assentiSlot){
  const optsT1=buildOpts(fascia,p,assentiSlot,av2?[av2]:[],av);
  const optsT2=buildOpts(fascia,p,assentiSlot,av?[av]:[],av2);
  const optsR=TRATTAMENTI.map(t=>`<option value="${t}"${tv===t?' selected':''}>${t}</option>`).join('');
- const wa=findWALink(p);
- const waHtml=wa
-  ?`<a class="wa-btn" href="${wa.linkWA}" target="_blank" rel="noopener" onclick="return segnaWAInviato('${pEsc}','${jsEsc(wa.key)}')">WA</a>`
-  :``;
  const infoStato=statoCensimento(p);
  const metaStato=metaStatoCensimento(infoStato.stato);
+ const esito=getEsitoVisita(fascia,p);
+ const optsE=ESITI_VISITA.map(e=>`<option value="${e.value}"${esito===e.value?' selected':''}>${e.label}</option>`).join('');
+ const badgeStato=infoStato.stato==='CENSITO'
+  ?`<a class="stato-censimento ${metaStato.classe} link" href="${PAZIENTI_URL}" target="_blank" rel="noopener" title="Apri l'anagrafica Pazienti">${metaStato.icona} ${metaStato.etichetta} ↗</a>`
+  :`<span class="stato-censimento ${metaStato.classe}" title="${escapeHtml(infoStato.motivo)}">${metaStato.icona} ${metaStato.etichetta}</span>`;
+ const controlloEsito=infoStato.stato==='NON_DISPONIBILE'
+  ?'<span class="esito-nd" title="Voce operativa: esito visita non applicabile">—</span>'
+  :`<select class="esito-select ${classeEsitoVisita(esito)}" aria-label="Esito visita" onchange="salvaEsitoVisita('${fEsc}','${pEsc}',this)">${optsE}</select>`;
  return `<div class="pc ${metaStato.classe}">
-  <div class="pn"><span class="stato-censimento ${metaStato.classe}" title="${escapeHtml(infoStato.motivo)}">${metaStato.icona} ${metaStato.etichetta}</span><input type="text" value="${escapeHtml(p)}" placeholder="Nome" onchange="aggiornaP(${si},${pi},this.value,'${fEsc}')"></div>
+  <div class="pn">${badgeStato}<input type="text" value="${escapeHtml(p)}" placeholder="Nome" onchange="aggiornaP(${si},${pi},this.value,'${fEsc}')"></div>
   <div class="tr"><select class="${tv?'ok':''}" onchange="salvaTrattamento('${fEsc}','${pEsc}',this)"><option value="">— Trattamento —</option>${optsR}</select></div>
   <div class="t1"><select class="${av?'ok':''}" onchange="salvaTerapista1(${si},'${fEsc}','${pEsc}',this)"><option value="">— T1 —</option>${optsT1}</select></div>
   <div class="t2"><select class="${av2?'ok':''}" onchange="salvaTerapista2(${si},'${fEsc}','${pEsc}',this)"><option value="">— T2 —</option>${optsT2}</select></div>
   <div class="pw"><div class="prezzo-wrap${prv?' ok':''}"><span class="euro">€</span><input type="text" placeholder="0" value="${prv}" onchange="salvaPrezzo('${fEsc}','${pEsc}',this.value,this.closest('.prezzo-wrap'))"></div></div>
-  <div class="wb">${waHtml}</div>
+  <div class="es">${controlloEsito}</div>
  </div>`;
 }
 function rerenderSlot(si){
@@ -477,7 +509,7 @@ function render(){
     <span class="sc">${cnt} pazient${cnt===1?'e':'i'}</span>
    </div>
    <div class="sb2" id="sb${si}">
-    <div class="clabs"><span>Nome</span><span>Trattamento</span><span>Terapista 1</span><span>Terapista 2</span><span>Prezzo</span><span>WA</span></div>
+    <div class="clabs"><span>Nome</span><span>Trattamento</span><span>Terapista 1</span><span>Terapista 2</span><span>Prezzo</span><span>Esito visita</span></div>
     <div class="plist">${rows}</div>
    </div>
   </div>`;
