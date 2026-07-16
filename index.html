@@ -379,7 +379,7 @@ function buildRow(p,pi,si,fascia,assentiSlot){
  const wa=findWALink(p);
  const waHtml=wa
   ?`<a class="wa-btn" href="${wa.linkWA}" target="_blank" rel="noopener" onclick="return segnaWAInviato('${pEsc}','${jsEsc(wa.key)}')">WA</a>`
-  :`<button class="wa-btn nd" title="Non disponibile">WA</button>`;
+  :``;
  const infoStato=statoCensimento(p);
  const metaStato=metaStatoCensimento(infoStato.stato);
  return `<div class="pc ${metaStato.classe}">
