@@ -86,13 +86,17 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 @media(max-width:640px){
  body{padding:8px}
  .clabs{display:none}
- .pc{grid-template-columns:1fr 1fr;gap:6px}
+ .pc{grid-template-columns:1fr 1fr;gap:8px 6px}
  .pc .pn{grid-column:1/-1}
  .pc .tr{grid-column:1/-1}
  .pc .t1{grid-column:1}
  .pc .t2{grid-column:2}
  .pc .pw{grid-column:1}
- .pc .es{grid-column:2;display:flex;align-items:center}
+ .pc .es{grid-column:2}
+ .pc .tr,.pc .t1,.pc .t2,.pc .pw,.pc .es{display:flex;flex-direction:column;align-items:stretch;gap:4px}
+ .pc .tr::before,.pc .t1::before,.pc .t2::before,.pc .pw::before,.pc .es::before{
+  content:attr(data-label);font-size:10px;line-height:1.1;font-weight:700;color:#52606d;text-transform:uppercase;letter-spacing:.35px;padding-left:2px
+ }
  .pc input,.pc select,.prezzo-wrap input{font-size:13px;padding:8px 9px}
  .euro{font-size:13px;padding:0 8px}
  .esito-select,.esito-nd{min-height:40px;font-size:13px}
@@ -511,11 +515,11 @@ function buildRow(p,pi,si,fascia,assentiSlot){
   :`<select class="esito-select ${classeEsitoVisita(esito)}" aria-label="Esito visita" onchange="salvaEsitoVisita('${fEsc}','${pEsc}',this)">${optsE}</select>`;
  return `<div class="pc ${metaStato.classe}">
   <div class="pn">${badgeStato}<input type="text" value="${escapeHtml(p)}" placeholder="Nome" onchange="aggiornaP(${si},${pi},this.value,'${fEsc}')"></div>
-  <div class="tr"><select class="${tv?'ok':''}" onchange="salvaTrattamento('${fEsc}','${pEsc}',this)"><option value="">— Trattamento —</option>${optsR}</select></div>
-  <div class="t1"><select class="${av?'ok':''}" onchange="salvaTerapista1(${si},'${fEsc}','${pEsc}',this)"><option value="">— T1 —</option>${optsT1}</select></div>
-  <div class="t2"><select class="${av2?'ok':''}" onchange="salvaTerapista2(${si},'${fEsc}','${pEsc}',this)"><option value="">— T2 —</option>${optsT2}</select></div>
-  <div class="pw"><div class="prezzo-wrap${prv?' ok':''}"><span class="euro">€</span><input type="text" placeholder="0" value="${prv}" onchange="salvaPrezzo('${fEsc}','${pEsc}',this.value,this.closest('.prezzo-wrap'))"></div></div>
-  <div class="es">${controlloEsito}</div>
+  <div class="tr" data-label="Trattamento"><select class="${tv?'ok':''}" onchange="salvaTrattamento('${fEsc}','${pEsc}',this)"><option value="">— Trattamento —</option>${optsR}</select></div>
+  <div class="t1" data-label="Terapista 1"><select class="${av?'ok':''}" onchange="salvaTerapista1(${si},'${fEsc}','${pEsc}',this)"><option value="">— T1 —</option>${optsT1}</select></div>
+  <div class="t2" data-label="Terapista 2"><select class="${av2?'ok':''}" onchange="salvaTerapista2(${si},'${fEsc}','${pEsc}',this)"><option value="">— T2 —</option>${optsT2}</select></div>
+  <div class="pw" data-label="Prezzo"><div class="prezzo-wrap${prv?' ok':''}"><span class="euro">€</span><input type="text" placeholder="0" value="${prv}" onchange="salvaPrezzo('${fEsc}','${pEsc}',this.value,this.closest('.prezzo-wrap'))"></div></div>
+  <div class="es" data-label="Esito visita">${controlloEsito}</div>
  </div>`;
 }
 function rerenderSlot(si){
