@@ -25,7 +25,9 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .nav-center{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;min-width:0}
 .date-btn{padding:6px 10px;border-radius:8px;border:1px solid #1F3864;background:#fff;color:#1F3864;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;min-width:150px}
 .date-btn:hover{background:#e8f0fe}
-.date-picker-hidden{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
+.date-picker-wrap{position:relative;min-width:150px}
+.date-picker-wrap .date-btn{width:100%}
+.date-picker-native{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;margin:0;padding:0}
 .today-btn{padding-left:10px;padding-right:10px}
 .stats-btn{margin-left:auto}
 .tbar{background:#1F3864;color:#fff;padding:9px 14px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
@@ -126,6 +128,7 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
  .nav{gap:5px}
  .nav-btn{padding:7px 9px;font-size:12px}
  .nav-center{gap:4px}
+ .date-picker-wrap{min-width:0;flex:1}
  .date-btn{min-width:0;width:100%;padding:7px 7px;font-size:12px}
  .today-btn{display:none}
  .stats-overlay{padding:8px}
@@ -171,8 +174,10 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 <div class="nav">
  <button class="nav-btn" onclick="changeDay(-1)">← Indietro</button>
  <div class="nav-center">
-  <button class="date-btn" id="date-btn" onclick="apriCalendario()" title="Scegli una data">📅 <span id="nav-label">Oggi</span></button>
-  <input class="date-picker-hidden" type="date" id="date-picker" onchange="goToDate(this.value)">
+  <div class="date-picker-wrap" title="Scegli una data">
+   <button class="date-btn" id="date-btn" type="button" tabindex="-1">📅 <span id="nav-label">Oggi</span></button>
+   <input class="date-picker-native" type="date" id="date-picker" aria-label="Scegli una data" onchange="goToDate(this.value)">
+  </div>
   <button class="nav-btn today-btn" id="today-btn" onclick="goToday()">Oggi</button>
  </div>
  <button class="nav-btn" onclick="changeDay(1)">Avanti →</button>
@@ -422,7 +427,8 @@ function goToDate(value){
 function apriCalendario(){
  const picker=document.getElementById('date-picker'); if(!picker) return;
  picker.value=isoDate(dateAtOffset());
- if(typeof picker.showPicker==='function') picker.showPicker(); else { picker.style.pointerEvents='auto'; picker.click(); picker.style.pointerEvents='none'; }
+ // Compatibilità: il campo date reale copre il pulsante e riceve direttamente il tap.
+ try{ if(typeof picker.showPicker==='function') picker.showPicker(); else picker.focus(); }catch(e){ picker.focus(); }
 }
 function setStudio(s){
  studio=s;
@@ -560,6 +566,7 @@ function updateLocal(fascia,paziente,t1,t2,trattamento,prezzo){
 }
 function salva(fascia,paziente,t1,t2,trattamento,prezzo){
  updateLocal(fascia,paziente,t1,t2,trattamento,prezzo);
+ invalidaCacheStatistiche();
  const params=new URLSearchParams({action:'save',data:calData.data,studio,fascia,paziente,terapista:t1||'',terapista2:t2||'',prestazione:trattamento||'',prezzo:prezzo||''});
  jsonp(SCRIPT_URL+'?'+params.toString(),null);
 }
@@ -613,6 +620,8 @@ function salvaEsitoVisita(fascia,paziente,sel){
    sel.value=precedente;
    aggiornaClasseEsito(sel);
    alert('Esito non salvato. Riprova con Aggiorna.');
+  }else{
+   invalidaCacheStatistiche();
   }
  });
 }
@@ -696,6 +705,20 @@ function listaDate(da,a){ const out=[]; const d=new Date(da); while(d<=a){ out.p
 function fetchAgendaOffset(n){
  return new Promise((resolve,reject)=>jsonp(SCRIPT_URL+'?giorni='+n,(data,err)=>err||!data?reject(new Error('Dati non disponibili')):resolve(data)));
 }
+const STATS_CACHE_TTL=5*60*1000;
+const statsRangeCache=new Map();
+function invalidaCacheStatistiche(){ statsRangeCache.clear(); }
+function fetchStatisticheRange(da,a){
+ const daIso=isoDate(da),aIso=isoDate(a),key=daIso+'|'+aIso;
+ const cached=statsRangeCache.get(key);
+ if(cached&&Date.now()-cached.ts<STATS_CACHE_TTL) return Promise.resolve(cached.data);
+ const url=SCRIPT_URL+'?action=statsRange&da='+encodeURIComponent(daIso)+'&a='+encodeURIComponent(aIso);
+ return new Promise((resolve,reject)=>jsonp(url,(data,err)=>{
+  if(err||!data||data.ok!==true||!Array.isArray(data.giorni)) return reject(new Error((data&&data.errore)||'Endpoint statistiche non disponibile'));
+  statsRangeCache.set(key,{ts:Date.now(),data});
+  resolve(data);
+ }));
+}
 function righeStatisticheDaGiorno(data,filtri){
  const righe=new Map(); const sedi=filtri.studio==='TUTTI'?['Boccetta','Trento']:[filtri.studio];
  function aggiungi(sede,fascia,paziente){
@@ -742,15 +765,25 @@ async function calcolaStatistiche(){
  if(dates.length>366){ mostraErroreStats('Per evitare un carico eccessivo, seleziona un periodo massimo di 366 giorni.'); return; }
  const filtri={studio:document.getElementById('stats-studio').value,terapista:document.getElementById('stats-terapista').value,trattamento:document.getElementById('stats-trattamento').value};
  const btn=document.getElementById('stats-go'),prog=document.getElementById('stats-progress'); btn.disabled=true;
- const tutte=[]; let completati=0,falliti=0,indice=0; const concorrenza=Math.min(5,dates.length);
- async function worker(){
-  while(indice<dates.length){
-   const i=indice++,d=dates[i];
-   try{ const data=await fetchAgendaOffset(offsetPerData(d)); tutte.push(...righeStatisticheDaGiorno(data,filtri)); }catch(e){ falliti++; }
-   completati++; prog.textContent=`Caricamento ${completati}/${dates.length}`;
+ const tutte=[]; let falliti=0;
+ try{
+  prog.textContent='Caricamento periodo…';
+  const pacchetto=await fetchStatisticheRange(da,a);
+  prog.textContent='Elaborazione '+pacchetto.giorni.length+' giorni…';
+  pacchetto.giorni.forEach(g=>tutte.push(...righeStatisticheDaGiorno(g,filtri)));
+ }catch(e){
+  let completati=0,indice=0; const concorrenza=Math.min(5,dates.length);
+  prog.textContent='Modalità compatibilità…';
+  async function worker(){
+   while(indice<dates.length){
+    const i=indice++,d=dates[i];
+    try{ const data=await fetchAgendaOffset(offsetPerData(d)); tutte.push(...righeStatisticheDaGiorno(data,filtri)); }catch(err){ falliti++; }
+    completati++; prog.textContent=`Caricamento ${completati}/${dates.length}`;
+   }
   }
+  await Promise.all(Array.from({length:concorrenza},worker));
  }
- await Promise.all(Array.from({length:concorrenza},worker)); btn.disabled=false; prog.textContent='';
+ btn.disabled=false; prog.textContent='';
  if(falliti){ mostraErroreStats(`Non è stato possibile leggere ${falliti} giorn${falliti===1?'o':'i'} del periodo. Riprova prima di usare il dato come definitivo.`); }
  const c={programmate:tutte.length,ESEGUITA:0,ASSENTE:0,ANNULLATA:0,SPOSTATA:0,NON_CONCLUSA:0,DA_CONFERMARE:0};
  tutte.forEach(r=>{ if(c[r.esito]!==undefined)c[r.esito]++; else c.DA_CONFERMARE++; });
