@@ -564,11 +564,51 @@ function updateLocal(fascia,paziente,t1,t2,trattamento,prezzo){
  if(!calData.assegnazioni) calData.assegnazioni={};
  calData.assegnazioni[`${studio}|${fascia}|${paziente}`]={terapista:t1,terapista2:t2,prestazione:trattamento,prezzo};
 }
+// Salvataggi agenda serializzati per riga: evita che richieste asincrone
+// ravvicinate (trattamento -> terapista -> prezzo) arrivino fuori ordine
+// e si sovrascrivano tra loro con dati meno recenti.
+const SAVE_ROW_DEBOUNCE_MS=250;
+const saveRowState=new Map();
+function chiaveSalvataggioRiga(studioRiga,fascia,paziente){ return `${studioRiga}|${fascia}|${paziente}`; }
+function programmaFlushSalvataggio(payload){
+ const key=chiaveSalvataggioRiga(payload.studio,payload.fascia,payload.paziente);
+ let st=saveRowState.get(key);
+ if(!st){ st={timer:null,inFlight:false,dirty:false,payload:null}; saveRowState.set(key,st); }
+ st.payload=payload;
+ st.dirty=true;
+ if(st.timer) clearTimeout(st.timer);
+ st.timer=setTimeout(()=>flushSalvataggioRiga(key),SAVE_ROW_DEBOUNCE_MS);
+}
+function flushSalvataggioRiga(key){
+ const st=saveRowState.get(key); if(!st) return;
+ st.timer=null;
+ if(st.inFlight||!st.dirty||!st.payload) return;
+ st.dirty=false; st.inFlight=true;
+ const p=st.payload;
+ const params=new URLSearchParams({
+  action:'save',data:p.data,studio:p.studio,fascia:p.fascia,paziente:p.paziente,
+  terapista:p.terapista||'',terapista2:p.terapista2||'',
+  prestazione:p.prestazione||'',prezzo:p.prezzo||''
+ });
+ jsonp(SCRIPT_URL+'?'+params.toString(),function(data,err){
+  st.inFlight=false;
+  if(err||!data||data.ok!==true){
+   console.error('Salvataggio agenda non riuscito',err,data);
+  }
+  if(st.dirty){
+   st.timer=setTimeout(()=>flushSalvataggioRiga(key),50);
+  }else{
+   saveRowState.delete(key);
+  }
+ });
+}
 function salva(fascia,paziente,t1,t2,trattamento,prezzo){
  updateLocal(fascia,paziente,t1,t2,trattamento,prezzo);
  invalidaCacheStatistiche();
- const params=new URLSearchParams({action:'save',data:calData.data,studio,fascia,paziente,terapista:t1||'',terapista2:t2||'',prestazione:trattamento||'',prezzo:prezzo||''});
- jsonp(SCRIPT_URL+'?'+params.toString(),null);
+ programmaFlushSalvataggio({
+  data:calData.data,studio,fascia,paziente,
+  terapista:t1||'',terapista2:t2||'',prestazione:trattamento||'',prezzo:prezzo||''
+ });
 }
 function fasceOverlap(f1,f2){
  const toMin=t=>{const[h,m]=t.split(':');return parseInt(h)*60+parseInt(m);};
