@@ -22,6 +22,12 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .nav-btn{padding:6px 14px;border-radius:8px;border:1px solid #ccc;background:#fff;font-size:13px;cursor:pointer}
 .nav-btn:hover{background:#e8f0fe}
 .nav-label{font-size:14px;font-weight:600;flex:1;text-align:center;color:#1F3864}
+.nav-center{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;min-width:0}
+.date-btn{padding:6px 10px;border-radius:8px;border:1px solid #1F3864;background:#fff;color:#1F3864;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;min-width:150px}
+.date-btn:hover{background:#e8f0fe}
+.date-picker-hidden{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
+.today-btn{padding-left:10px;padding-right:10px}
+.stats-btn{margin-left:auto}
 .tbar{background:#1F3864;color:#fff;padding:9px 14px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .tbar-title{font-size:13px;font-weight:600}
 .tbar-right{display:flex;align-items:center;gap:8px}
@@ -41,6 +47,35 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .cfilter{border:1px solid #1F3864;background:#fff;color:#1F3864;border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer}
 .cfilter.active{background:#1F3864;color:#fff}
 .cfilter:disabled{opacity:.5;cursor:default}
+.stats-overlay{position:fixed;inset:0;background:rgba(18,31,49,.58);z-index:1000;display:none;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto}
+.stats-overlay.show{display:flex}
+.stats-modal{background:#f7f9fc;width:min(920px,100%);border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.25);overflow:hidden}
+.stats-head{background:#1F3864;color:#fff;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.stats-head h2{font-size:17px}
+.stats-close{border:0;background:rgba(255,255,255,.18);color:#fff;width:30px;height:30px;border-radius:50%;font-size:20px;cursor:pointer}
+.stats-body{padding:14px}
+.stats-presets{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+.stats-period-btn{border:1px solid #b7c4d2;background:#fff;color:#34495e;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer}
+.stats-period-btn.active{background:#1F3864;color:#fff;border-color:#1F3864}
+.stats-controls{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:8px;background:#fff;border:1px solid #dce3ed;border-radius:10px;padding:10px;margin-bottom:10px}
+.stats-field{display:flex;flex-direction:column;gap:4px}
+.stats-field label{font-size:10px;font-weight:700;color:#52606d;text-transform:uppercase;letter-spacing:.35px}
+.stats-field input,.stats-field select{width:100%;border:1px solid #ccd6e0;border-radius:7px;background:#fff;padding:7px 8px;font-size:12px}
+.stats-actions{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.stats-go{border:0;background:#1F3864;color:#fff;border-radius:8px;padding:8px 15px;font-size:12px;font-weight:700;cursor:pointer}
+.stats-go:disabled{opacity:.55;cursor:default}
+.stats-period-label{font-size:12px;color:#52606d;font-weight:600}
+.stats-progress{font-size:11px;color:#66788a;margin-left:auto}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat-card{background:#fff;border:1px solid #dce3ed;border-radius:10px;padding:11px}
+.stat-label{font-size:10px;text-transform:uppercase;letter-spacing:.35px;color:#657789;font-weight:700;margin-bottom:5px}
+.stat-value{font-size:25px;font-weight:800;color:#1F3864}
+.stat-card.primary{border-color:#8ba7cb;background:#f1f6fd}
+.stat-card.good{border-color:#9ccc9e;background:#f2faf3}
+.stat-card.bad{border-color:#efb4b4;background:#fff6f6}
+.stat-card.warn{border-color:#f0cc8b;background:#fffaf0}
+.stats-note{margin-top:10px;font-size:11px;color:#657789;line-height:1.4}
+.stats-error{padding:10px;border-radius:8px;background:#ffebee;color:#9f1d1d;border:1px solid #ef9a9a;font-size:12px;display:none;margin-bottom:10px}
 .slot{border:1px solid #dce3ed;border-radius:10px;margin-bottom:10px;overflow:hidden;background:#fff}
 .sh{background:#1F3864;color:#fff;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:8px;user-select:none}
 .st{font-size:13px;font-weight:600;flex:1}
@@ -85,6 +120,21 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .prt:hover{background:#2E75B6}
 @media(max-width:640px){
  body{padding:8px}
+ .top{gap:6px}
+ .top .sb{padding:7px 10px;font-size:12px}
+ .stats-btn{margin-left:0}
+ .nav{gap:5px}
+ .nav-btn{padding:7px 9px;font-size:12px}
+ .nav-center{gap:4px}
+ .date-btn{min-width:0;width:100%;padding:7px 7px;font-size:12px}
+ .today-btn{display:none}
+ .stats-overlay{padding:8px}
+ .stats-body{padding:10px}
+ .stats-controls{grid-template-columns:1fr 1fr}
+ .stats-field:nth-child(5){grid-column:1/-1}
+ .stats-grid{grid-template-columns:1fr 1fr}
+ .stat-value{font-size:22px}
+ .stats-progress{width:100%;margin-left:0}
  .clabs{display:none}
  .pc{grid-template-columns:1fr 1fr;gap:8px 6px}
  .pc .pn{grid-column:1/-1}
@@ -102,7 +152,7 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
  .esito-select,.esito-nd{min-height:40px;font-size:13px}
 }
 @media print{
- .header span,.top,.nav,.tbar-right,.footer,.cfilter{display:none!important}
+ .header span,.top,.nav,.tbar-right,.footer,.cfilter,.stats-overlay{display:none!important}
  .tbar{border-radius:0}
  .slot{break-inside:avoid}
 }
@@ -116,10 +166,15 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 <div class="top">
  <button class="sb active" onclick="setStudio('Boccetta')">Studio Boccetta</button>
  <button class="sb" onclick="setStudio('Trento')">Studio Trento</button>
+ <button class="sb stats-btn" onclick="apriStatistiche()">📊 Statistiche</button>
 </div>
 <div class="nav">
  <button class="nav-btn" onclick="changeDay(-1)">← Indietro</button>
- <span class="nav-label" id="nav-label">Oggi</span>
+ <div class="nav-center">
+  <button class="date-btn" id="date-btn" onclick="apriCalendario()" title="Scegli una data">📅 <span id="nav-label">Oggi</span></button>
+  <input class="date-picker-hidden" type="date" id="date-picker" onchange="goToDate(this.value)">
+  <button class="nav-btn today-btn" id="today-btn" onclick="goToday()">Oggi</button>
+ </div>
  <button class="nav-btn" onclick="changeDay(1)">Avanti →</button>
 </div>
 <div class="tbar">
@@ -136,6 +191,46 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
   <span class="cstat grigio">Controllo in corso…</span>
  </div>
  <button class="cfilter" id="cfilter" onclick="toggleFiltroCensimento()" disabled>Mostra solo da gestire</button>
+</div>
+<div class="stats-overlay" id="stats-overlay" onclick="chiudiStatisticheDaSfondo(event)">
+ <div class="stats-modal" role="dialog" aria-modal="true" aria-labelledby="stats-title">
+  <div class="stats-head">
+   <h2 id="stats-title">📊 Statistiche visite</h2>
+   <button class="stats-close" onclick="chiudiStatistiche()" aria-label="Chiudi">×</button>
+  </div>
+  <div class="stats-body">
+   <div class="stats-presets">
+    <button class="stats-period-btn" data-periodo="week" onclick="impostaPeriodoStats('week',this)">Questa settimana</button>
+    <button class="stats-period-btn" data-periodo="month" onclick="impostaPeriodoStats('month',this)">Questo mese</button>
+    <button class="stats-period-btn" data-periodo="prevmonth" onclick="impostaPeriodoStats('prevmonth',this)">Mese precedente</button>
+    <button class="stats-period-btn" data-periodo="custom" onclick="impostaPeriodoStats('custom',this)">Periodo personalizzato</button>
+   </div>
+   <div class="stats-controls">
+    <div class="stats-field"><label for="stats-da">Dal</label><input type="date" id="stats-da"></div>
+    <div class="stats-field"><label for="stats-a">Al</label><input type="date" id="stats-a"></div>
+    <div class="stats-field"><label for="stats-studio">Studio</label><select id="stats-studio"><option value="TUTTI">Entrambi</option><option value="Boccetta">Boccetta</option><option value="Trento">Trento</option></select></div>
+    <div class="stats-field"><label for="stats-terapista">Terapista</label><select id="stats-terapista"><option value="">Tutti</option></select></div>
+    <div class="stats-field"><label for="stats-trattamento">Trattamento</label><select id="stats-trattamento"><option value="">Tutti</option></select></div>
+   </div>
+   <div class="stats-actions">
+    <button class="stats-go" id="stats-go" onclick="calcolaStatistiche()">Calcola</button>
+    <span class="stats-period-label" id="stats-period-label">—</span>
+    <span class="stats-progress" id="stats-progress"></span>
+   </div>
+   <div class="stats-error" id="stats-error"></div>
+   <div class="stats-grid" id="stats-grid">
+    <div class="stat-card primary"><div class="stat-label">Visite programmate</div><div class="stat-value" id="stat-programmate">—</div></div>
+    <div class="stat-card good"><div class="stat-label">Visite eseguite</div><div class="stat-value" id="stat-eseguite">—</div></div>
+    <div class="stat-card bad"><div class="stat-label">Assenti</div><div class="stat-value" id="stat-assenti">—</div></div>
+    <div class="stat-card warn"><div class="stat-label">Annullate</div><div class="stat-value" id="stat-annullate">—</div></div>
+    <div class="stat-card warn"><div class="stat-label">Spostate</div><div class="stat-value" id="stat-spostate">—</div></div>
+    <div class="stat-card warn"><div class="stat-label">Non concluse</div><div class="stat-value" id="stat-nonconcluse">—</div></div>
+    <div class="stat-card"><div class="stat-label">Da confermare</div><div class="stat-value" id="stat-confermare">—</div></div>
+    <div class="stat-card primary"><div class="stat-label">% eseguite / programmate</div><div class="stat-value" id="stat-percentuale">—</div></div>
+   </div>
+   <div class="stats-note">“Visite programmate” conta gli appuntamenti presenti in agenda nel periodo selezionato. “Visite eseguite” conta solo gli appuntamenti con esito Eseguita. I filtri per terapista e trattamento usano le assegnazioni salvate nell’agenda.</div>
+  </div>
+ </div>
 </div>
 <div id="main"></div>
 <div class="footer">
@@ -297,12 +392,38 @@ function etichettaRegolaAssenza(r){
  return r.etichetta?`${r.nome} (${r.etichetta})`:r.nome;
 }
 function fmtT(iso){ const d=new Date(iso); return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); }
+function dateAtOffset(n=offset){
+ const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()+n); return d;
+}
+function isoDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function formatDateIT(d){ return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; }
 function dayLabel(n){
- if(n===0) return 'Oggi'; if(n===1) return 'Domani'; if(n===-1) return 'Ieri';
- const d=new Date(); d.setDate(d.getDate()+n);
- return GIORNI_L[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1);
+ const d=dateAtOffset(n);
+ const pref=n===0?'Oggi':n===1?'Domani':n===-1?'Ieri':GIORNI_L[d.getDay()];
+ return `${pref} · ${formatDateIT(d)}`;
+}
+function aggiornaNavigazioneData(){
+ const d=dateAtOffset();
+ const lab=document.getElementById('nav-label'),picker=document.getElementById('date-picker'),today=document.getElementById('today-btn');
+ if(lab) lab.textContent=dayLabel(offset);
+ if(picker) picker.value=isoDate(d);
+ if(today) today.style.visibility=offset===0?'hidden':'visible';
 }
 function changeDay(d){ offset+=d; carica(); }
+function goToday(){ if(offset===0) return; offset=0; carica(); }
+function goToDate(value){
+ if(!value) return;
+ const parts=value.split('-').map(Number); if(parts.length!==3) return;
+ const target=new Date(parts[0],parts[1]-1,parts[2],12,0,0,0);
+ const today=new Date(); today.setHours(12,0,0,0);
+ offset=Math.round((target-today)/86400000);
+ carica();
+}
+function apriCalendario(){
+ const picker=document.getElementById('date-picker'); if(!picker) return;
+ picker.value=isoDate(dateAtOffset());
+ if(typeof picker.showPicker==='function') picker.showPicker(); else { picker.style.pointerEvents='auto'; picker.click(); picker.style.pointerEvents='none'; }
+}
 function setStudio(s){
  studio=s;
  document.querySelectorAll('.sb').forEach(b=>b.classList.toggle('active',b.textContent===`Studio ${s}`));
@@ -409,7 +530,7 @@ function aggiornaBarraCensimento(){
 }
 function carica(){
  censimentiData={}; censimentiReady=false; censimentiLoading=true; censimentiError='';
- document.getElementById('nav-label').textContent=dayLabel(offset);
+ aggiornaNavigazioneData();
  document.getElementById('main').innerHTML='<div class="msg">Carico dal calendario...</div>';
  document.getElementById('cbadge').textContent='—';
  document.getElementById('abar').className='abar';
@@ -535,6 +656,116 @@ function salvaTerapista1(si,fascia,paziente,sel){ sel.className=sel.value?'ok':'
 function salvaTerapista2(si,fascia,paziente,sel){ sel.className=sel.value?'ok':''; const s=getSaved(fascia,paziente); salva(fascia,paziente,s.terapista,sel.value,s.prestazione,s.prezzo); rerenderSlot(si); }
 function salvaTrattamento(fascia,paziente,sel){ sel.className=sel.value?'ok':''; const s=getSaved(fascia,paziente); salva(fascia,paziente,s.terapista,s.terapista2,sel.value,s.prezzo); }
 function salvaPrezzo(fascia,paziente,val,wrap){ wrap.className='prezzo-wrap'+(val?' ok':''); const s=getSaved(fascia,paziente); salva(fascia,paziente,s.terapista,s.terapista2,s.prestazione,val); }
+// ── STATISTICHE ───────────────────────────────────────────────
+function escapeAttr(v){ return String(v||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function popolaFiltriStatistiche(){
+ const t=document.getElementById('stats-terapista'),r=document.getElementById('stats-trattamento');
+ if(t&&t.options.length===1) TERAPISTI.forEach(x=>t.insertAdjacentHTML('beforeend',`<option value="${escapeAttr(x)}">${escapeHtml(x)}</option>`));
+ if(r&&r.options.length===1) TRATTAMENTI.forEach(x=>r.insertAdjacentHTML('beforeend',`<option value="${escapeAttr(x)}">${escapeHtml(x)}</option>`));
+}
+function apriStatistiche(){
+ popolaFiltriStatistiche();
+ document.getElementById('stats-overlay').classList.add('show');
+ document.body.style.overflow='hidden';
+ const da=document.getElementById('stats-da');
+ if(!da.value) impostaPeriodoStats('week',document.querySelector('[data-periodo="week"]'));
+}
+function chiudiStatistiche(){ document.getElementById('stats-overlay').classList.remove('show'); document.body.style.overflow=''; }
+function chiudiStatisticheDaSfondo(e){ if(e.target&&e.target.id==='stats-overlay') chiudiStatistiche(); }
+function dataDaIso(v){ const p=String(v||'').split('-').map(Number); return p.length===3?new Date(p[0],p[1]-1,p[2],12,0,0,0):null; }
+function offsetPerData(d){ const o=new Date(); o.setHours(12,0,0,0); return Math.round((d-o)/86400000); }
+function impostaPeriodoStats(tipo,btn){
+ document.querySelectorAll('.stats-period-btn').forEach(b=>b.classList.remove('active')); if(btn) btn.classList.add('active');
+ const now=new Date(); now.setHours(12,0,0,0); let da=new Date(now),a=new Date(now);
+ if(tipo==='week'){
+  const delta=(now.getDay()+6)%7; da.setDate(now.getDate()-delta); a=new Date(da); a.setDate(da.getDate()+6);
+ }else if(tipo==='month'){
+  da=new Date(now.getFullYear(),now.getMonth(),1,12); a=new Date(now.getFullYear(),now.getMonth()+1,0,12);
+ }else if(tipo==='prevmonth'){
+  da=new Date(now.getFullYear(),now.getMonth()-1,1,12); a=new Date(now.getFullYear(),now.getMonth(),0,12);
+ }else if(tipo==='custom'){
+  document.getElementById('stats-da').focus(); return;
+ }
+ document.getElementById('stats-da').value=isoDate(da); document.getElementById('stats-a').value=isoDate(a); aggiornaEtichettaPeriodoStats();
+}
+function aggiornaEtichettaPeriodoStats(){
+ const da=dataDaIso(document.getElementById('stats-da').value),a=dataDaIso(document.getElementById('stats-a').value);
+ document.getElementById('stats-period-label').textContent=da&&a?`${formatDateIT(da)} – ${formatDateIT(a)}`:'—';
+}
+function listaDate(da,a){ const out=[]; const d=new Date(da); while(d<=a){ out.push(new Date(d)); d.setDate(d.getDate()+1); } return out; }
+function fetchAgendaOffset(n){
+ return new Promise((resolve,reject)=>jsonp(SCRIPT_URL+'?giorni='+n,(data,err)=>err||!data?reject(new Error('Dati non disponibili')):resolve(data)));
+}
+function righeStatisticheDaGiorno(data,filtri){
+ const righe=new Map(); const sedi=filtri.studio==='TUTTI'?['Boccetta','Trento']:[filtri.studio];
+ function aggiungi(sede,fascia,paziente){
+  const key=`${sede}|${fascia}|${paziente}`;
+  const ass=(data.assegnazioni||{})[key]||{};
+  const e=(data.esitiVisita||{})[key];
+  righe.set(key,{sede,fascia,paziente,esito:(e&&e.esito)||'DA_CONFERMARE',assegnazione:ass});
+ }
+ sedi.forEach(sede=>{
+  const eventi=(data.studi||{})[sede]||[];
+  eventi.forEach(ev=>{
+   if(ev.tuttoCiorno) return;
+   const fascia=fmtT(ev.inizio)+'–'+fmtT(ev.fine), t=ev.titolo||'';
+   const titolo=t.replace(/^\([^)]+\)\s*/,'').trim();
+   const eventoSoloAssenza=isNotaAssenza(titolo)&&parseAssenti(titolo).length&&!titolo.includes('/');
+   if(eventoSoloAssenza) return;
+   titolo.split('/').map(s=>s.trim()).filter(Boolean).forEach(paziente=>aggiungi(sede,fascia,paziente));
+  });
+  // Mantiene nello storico anche una visita già classificata (es. spostata/annullata)
+  // che in seguito sia stata rimossa o spostata nel calendario.
+  Object.keys(data.esitiVisita||{}).forEach(key=>{
+   if(!key.startsWith(sede+'|')||righe.has(key)) return;
+   const parti=key.split('|'); if(parti.length<3) return;
+   const fascia=parti[1],paziente=parti.slice(2).join('|');
+   if(fascia&&paziente) aggiungi(sede,fascia,paziente);
+  });
+ });
+ return [...righe.values()].filter(r=>{
+  const ass=r.assegnazione||{};
+  if(filtri.terapista&&ass.terapista!==filtri.terapista&&ass.terapista2!==filtri.terapista) return false;
+  if(filtri.trattamento&&ass.prestazione!==filtri.trattamento) return false;
+  return true;
+ });
+}
+function resetStatistiche(){ ['programmate','eseguite','assenti','annullate','spostate','nonconcluse','confermare','percentuale'].forEach(k=>{ const e=document.getElementById('stat-'+k); if(e)e.textContent='—'; }); }
+function mostraErroreStats(msg){ const e=document.getElementById('stats-error'); e.textContent=msg; e.style.display='block'; }
+function nascondiErroreStats(){ const e=document.getElementById('stats-error'); e.textContent=''; e.style.display='none'; }
+async function calcolaStatistiche(){
+ nascondiErroreStats(); resetStatistiche(); aggiornaEtichettaPeriodoStats();
+ const da=dataDaIso(document.getElementById('stats-da').value),a=dataDaIso(document.getElementById('stats-a').value);
+ if(!da||!a){ mostraErroreStats('Seleziona una data iniziale e una data finale.'); return; }
+ if(a<da){ mostraErroreStats('La data finale non può precedere quella iniziale.'); return; }
+ const dates=listaDate(da,a);
+ if(dates.length>366){ mostraErroreStats('Per evitare un carico eccessivo, seleziona un periodo massimo di 366 giorni.'); return; }
+ const filtri={studio:document.getElementById('stats-studio').value,terapista:document.getElementById('stats-terapista').value,trattamento:document.getElementById('stats-trattamento').value};
+ const btn=document.getElementById('stats-go'),prog=document.getElementById('stats-progress'); btn.disabled=true;
+ const tutte=[]; let completati=0,falliti=0,indice=0; const concorrenza=Math.min(5,dates.length);
+ async function worker(){
+  while(indice<dates.length){
+   const i=indice++,d=dates[i];
+   try{ const data=await fetchAgendaOffset(offsetPerData(d)); tutte.push(...righeStatisticheDaGiorno(data,filtri)); }catch(e){ falliti++; }
+   completati++; prog.textContent=`Caricamento ${completati}/${dates.length}`;
+  }
+ }
+ await Promise.all(Array.from({length:concorrenza},worker)); btn.disabled=false; prog.textContent='';
+ if(falliti){ mostraErroreStats(`Non è stato possibile leggere ${falliti} giorn${falliti===1?'o':'i'} del periodo. Riprova prima di usare il dato come definitivo.`); }
+ const c={programmate:tutte.length,ESEGUITA:0,ASSENTE:0,ANNULLATA:0,SPOSTATA:0,NON_CONCLUSA:0,DA_CONFERMARE:0};
+ tutte.forEach(r=>{ if(c[r.esito]!==undefined)c[r.esito]++; else c.DA_CONFERMARE++; });
+ document.getElementById('stat-programmate').textContent=c.programmate;
+ document.getElementById('stat-eseguite').textContent=c.ESEGUITA;
+ document.getElementById('stat-assenti').textContent=c.ASSENTE;
+ document.getElementById('stat-annullate').textContent=c.ANNULLATA;
+ document.getElementById('stat-spostate').textContent=c.SPOSTATA;
+ document.getElementById('stat-nonconcluse').textContent=c.NON_CONCLUSA;
+ document.getElementById('stat-confermare').textContent=c.DA_CONFERMARE;
+ document.getElementById('stat-percentuale').textContent=c.programmate?`${(c.ESEGUITA*100/c.programmate).toFixed(1).replace('.',',')}%`:'0%';
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&document.getElementById('stats-overlay').classList.contains('show')) chiudiStatistiche(); });
+document.addEventListener('change',e=>{ if(e.target&&['stats-da','stats-a'].includes(e.target.id)){ document.querySelectorAll('.stats-period-btn').forEach(b=>b.classList.remove('active')); const c=document.querySelector('[data-periodo="custom"]'); if(c)c.classList.add('active'); aggiornaEtichettaPeriodoStats(); } });
+
 function render(){
  if(!calData) return;
  const eventi=(calData.studi||{})[studio]||[];
