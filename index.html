@@ -125,12 +125,24 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .stats-mini-card{border:1px solid #dce3ed;border-radius:9px;padding:9px;background:#f7f9fc}
 .stats-mini-label{font-size:9px;text-transform:uppercase;color:#657789;font-weight:800;margin-bottom:4px}
 .stats-mini-value{font-size:20px;font-weight:800;color:#1F3864}
+.compare-periods{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin-bottom:10px;padding:10px;border:1px solid #dce3ed;border-radius:10px;background:#fff}
+.compare-period{min-width:0}
+.compare-period.previous{text-align:right}
+.compare-period-kicker{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:#7a8998;font-weight:800}
+.compare-period-name{font-size:16px;line-height:1.15;font-weight:800;color:#1F3864;margin-top:2px}
+.compare-period-dates{font-size:10px;color:#657789;margin-top:3px}
+.compare-vs{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#1F3864;color:#fff;font-size:10px;font-weight:800;letter-spacing:.5px}
 .compare-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-.compare-card{border:1px solid #dce3ed;border-radius:9px;padding:9px;background:#f7f9fc}
+.compare-card{border:1px solid #dce3ed;border-radius:10px;padding:10px;background:#fff}
 .compare-label{font-size:9px;text-transform:uppercase;color:#657789;font-weight:800;min-height:22px}
-.compare-now{font-size:20px;font-weight:800;color:#1F3864;margin-top:3px}
-.compare-prev{font-size:10px;color:#657789;margin-top:2px}
-.compare-delta{font-size:11px;font-weight:800;margin-top:4px}
+.compare-values{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:5px;margin-top:5px}
+.compare-value{text-align:center;min-width:0}
+.compare-value:first-child{text-align:left}
+.compare-value:last-child{text-align:right}
+.compare-month{display:block;font-size:9px;color:#7a8998;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.compare-number{display:block;font-size:18px;font-weight:800;color:#1F3864;margin-top:1px;white-space:nowrap}
+.compare-arrow{font-size:14px;color:#9aa7b4;padding-bottom:2px}
+.compare-delta{font-size:11px;font-weight:800;margin-top:7px;padding-top:6px;border-top:1px solid #edf1f5}
 .compare-delta.up{color:#256029}.compare-delta.down{color:#9f1d1d}.compare-delta.flat{color:#52606d}
 .export-actions{display:flex;gap:8px;flex-wrap:wrap}
 .export-btn{border:0;background:#1F3864;color:#fff;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:800;cursor:pointer}
@@ -211,6 +223,11 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
  .stats-detail-patient{grid-column:1/-1;font-size:14px}
  .stats-kpi-row{grid-template-columns:1fr 1fr}
  .compare-grid{grid-template-columns:1fr 1fr}
+ .compare-periods{grid-template-columns:1fr auto 1fr;gap:6px;padding:8px}
+ .compare-period-name{font-size:13px}
+ .compare-period-dates{font-size:9px}
+ .compare-vs{width:28px;height:28px;font-size:9px}
+ .compare-number{font-size:17px}
  .history-overlay{padding:8px}
  .history-modal{max-height:92vh}
  .history-row{grid-template-columns:1fr 1fr;gap:5px 8px}
@@ -1098,12 +1115,86 @@ function renderStatsEconomico(){
  const box=document.getElementById('stats-panel-economico');if(!box)return;const e=aggregaEconomico(ultimeRigheStatistiche);
  box.innerHTML=`<div class="stats-kpi-row"><div class="stats-mini-card"><div class="stats-mini-label">Valore programmato</div><div class="stats-mini-value">${euroStats(e.totale.valore)}</div></div><div class="stats-mini-card"><div class="stats-mini-label">Prestazioni eseguite / incasso</div><div class="stats-mini-value">${euroStats(e.totale.incasso)}</div></div><div class="stats-mini-card"><div class="stats-mini-label">Senza prezzo</div><div class="stats-mini-value">${e.senzaPrezzo}</div></div></div>${tabellaEconomica(e.studio,'Per studio')}${tabellaEconomica(e.tipo,'Per tipologia')}${tabellaEconomica(e.terapista,'Per terapista')}<div class="stats-note">Per riconciliare i totali, quando una prestazione ha T1 e T2 l’importo viene ripartito in parti uguali fra i due terapisti. Gli importi “incasso” considerano soltanto le prestazioni con esito Eseguita.</div>`;
 }
-function deltaConfronto(cur,prev,isMoney){const diff=cur-prev;if(prev===0){if(cur===0)return {txt:'0%',cls:'flat'};return {txt:'Nuovo',cls:'up'};}const pct=diff*100/Math.abs(prev);return {txt:(pct>0?'+':'')+pct.toFixed(1).replace('.',',')+'%',cls:pct>0?'up':pct<0?'down':'flat'};}
+function periodoInteroMese(da,a){
+ return !!(da&&a&&da.getFullYear()===a.getFullYear()&&da.getMonth()===a.getMonth()&&da.getDate()===1&&a.getDate()===new Date(a.getFullYear(),a.getMonth()+1,0,12).getDate());
+}
+function nomeMeseAnno(d){
+ const s=new Intl.DateTimeFormat('it-IT',{month:'long',year:'numeric'}).format(d);
+ return s.charAt(0).toUpperCase()+s.slice(1);
+}
+function nomeBrevePeriodo(da,a){
+ if(periodoInteroMese(da,a)) return nomeMeseAnno(da);
+ return `${formatDateIT(da)} – ${formatDateIT(a)}`;
+}
+function periodoConfrontoPrecedente(da,a){
+ // Se il periodo selezionato è un mese solare completo, il confronto è SEMPRE
+ // con il mese solare precedente: dal giorno 1 all'ultimo giorno del mese.
+ if(periodoInteroMese(da,a)){
+  const prevDa=new Date(da.getFullYear(),da.getMonth()-1,1,12);
+  const prevA=new Date(da.getFullYear(),da.getMonth(),0,12);
+  return {da:prevDa,a:prevA,mensile:true};
+ }
+ // Settimane e periodi personalizzati restano confrontati con un intervallo
+ // immediatamente precedente della stessa durata.
+ const giorni=listaDate(da,a).length;
+ const prevA=new Date(da); prevA.setDate(prevA.getDate()-1);
+ const prevDa=new Date(prevA); prevDa.setDate(prevDa.getDate()-giorni+1);
+ return {da:prevDa,a:prevA,mensile:false};
+}
+function deltaConfronto(cur,prev,isMoney){
+ const diff=cur-prev;
+ if(diff===0) return {txt:'Nessuna variazione',cls:'flat'};
+ if(prev===0){
+  const valore=isMoney?euroStats(Math.abs(diff)):Math.abs(diff);
+  return {txt:(diff>0?'▲ +':'▼ −')+valore,cls:diff>0?'up':'down'};
+ }
+ const pct=diff*100/Math.abs(prev);
+ return {txt:(pct>0?'▲ +':'▼ ')+pct.toFixed(1).replace('.',',')+'%',cls:pct>0?'up':'down'};
+}
 async function caricaConfrontoStats(){
- const box=document.getElementById('stats-panel-confronto');if(!box||!statisticheCalcolate)return;const da=dataDaIso(document.getElementById('stats-da').value),a=dataDaIso(document.getElementById('stats-a').value);if(!da||!a)return;
- const giorni=listaDate(da,a).length,prevA=new Date(da);prevA.setDate(prevA.getDate()-1);const prevDa=new Date(prevA);prevDa.setDate(prevDa.getDate()-giorni+1);box.innerHTML='<div class="stats-detail-empty">Caricamento periodo precedente…</div>';
+ const box=document.getElementById('stats-panel-confronto');
+ if(!box||!statisticheCalcolate)return;
+ const da=dataDaIso(document.getElementById('stats-da').value),a=dataDaIso(document.getElementById('stats-a').value);
+ if(!da||!a)return;
+ const confronto=periodoConfrontoPrecedente(da,a),prevDa=confronto.da,prevA=confronto.a;
+ box.innerHTML='<div class="stats-detail-empty">Caricamento confronto…</div>';
  const filtri={studio:document.getElementById('stats-studio').value,terapista:document.getElementById('stats-terapista').value,trattamento:document.getElementById('stats-trattamento').value};
- try{const pac=await fetchStatisticheRange(prevDa,prevA),prev=[];pac.giorni.forEach(g=>prev.push(...righeStatisticheDaGiorno(g,filtri)));const curM=metricheRigheStats(ultimeRigheStatistiche),preM=metricheRigheStats(prev);const defs=[['Prestazioni',curM.programmate,preM.programmate,false,false],['Eseguite',curM.eseguite,preM.eseguite,false,false],['Terapie',curM.terapie,preM.terapie,false,false],['Assenti',curM.assenti,preM.assenti,false,true],['Incasso',curM.incasso,preM.incasso,true,false]];box.innerHTML=`<div class="stats-extra-title">${formatDateIT(da)} – ${formatDateIT(a)} vs ${formatDateIT(prevDa)} – ${formatDateIT(prevA)}</div><div class="compare-grid">${defs.map(([lab,c,p,money,reverse])=>{const d=deltaConfronto(c,p,money);if(reverse&&d.cls==='up')d.cls='down';else if(reverse&&d.cls==='down')d.cls='up';return `<div class="compare-card"><div class="compare-label">${lab}</div><div class="compare-now">${money?euroStats(c):c}</div><div class="compare-prev">Prima: ${money?euroStats(p):p}</div><div class="compare-delta ${d.cls}">${d.txt}</div></div>`;}).join('')}</div>`;}catch(e){box.innerHTML='<div class="stats-detail-empty">Confronto non disponibile. Riprova.</div>';}
+ try{
+  const pac=await fetchStatisticheRange(prevDa,prevA),prev=[];
+  pac.giorni.forEach(g=>prev.push(...righeStatisticheDaGiorno(g,filtri)));
+  const curM=metricheRigheStats(ultimeRigheStatistiche),preM=metricheRigheStats(prev);
+  const defs=[['Prestazioni',curM.programmate,preM.programmate,false,false],['Eseguite',curM.eseguite,preM.eseguite,false,false],['Terapie',curM.terapie,preM.terapie,false,false],['Assenti',curM.assenti,preM.assenti,false,true],['Incasso',curM.incasso,preM.incasso,true,false]];
+  const nomeCorrente=nomeBrevePeriodo(da,a),nomePrecedente=nomeBrevePeriodo(prevDa,prevA);
+  box.innerHTML=`<div class="compare-periods">
+   <div class="compare-period">
+    <div class="compare-period-kicker">Periodo di confronto</div>
+    <div class="compare-period-name">${escapeHtml(nomePrecedente)}</div>
+    <div class="compare-period-dates">${formatDateIT(prevDa)} – ${formatDateIT(prevA)}</div>
+   </div>
+   <div class="compare-vs">VS</div>
+   <div class="compare-period previous">
+    <div class="compare-period-kicker">Periodo selezionato</div>
+    <div class="compare-period-name">${escapeHtml(nomeCorrente)}</div>
+    <div class="compare-period-dates">${formatDateIT(da)} – ${formatDateIT(a)}</div>
+   </div>
+  </div>
+  <div class="compare-grid">${defs.map(([lab,c,p,money,reverse])=>{
+   const d=deltaConfronto(c,p,money);
+   if(reverse&&d.cls==='up')d.cls='down';else if(reverse&&d.cls==='down')d.cls='up';
+   return `<div class="compare-card">
+    <div class="compare-label">${lab}</div>
+    <div class="compare-values">
+     <div class="compare-value"><span class="compare-month">${escapeHtml(nomePrecedente)}</span><strong class="compare-number">${money?euroStats(p):p}</strong></div>
+     <div class="compare-arrow">→</div>
+     <div class="compare-value"><span class="compare-month">${escapeHtml(nomeCorrente)}</span><strong class="compare-number">${money?euroStats(c):c}</strong></div>
+    </div>
+    <div class="compare-delta ${d.cls}">${d.txt}</div>
+   </div>`;
+  }).join('')}</div>
+  <div class="stats-note">${confronto.mensile?'Il confronto mensile usa sempre mesi solari completi, dal giorno 1 all’ultimo giorno del mese.':'Il periodo selezionato è confrontato con l’intervallo immediatamente precedente della stessa durata.'}</div>`;
+ }catch(e){
+  box.innerHTML='<div class="stats-detail-empty">Confronto non disponibile. Riprova.</div>';
+ }
 }
 function csvCell(v){const s=String(v??'');return '"'+s.replace(/"/g,'""')+'"';}
 function esportaStatisticheCSV(){
