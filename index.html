@@ -77,6 +77,14 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .stat-card.bad{border-color:#efb4b4;background:#fff6f6}
 .stat-card.warn{border-color:#f0cc8b;background:#fffaf0}
 .stats-note{margin-top:10px;font-size:11px;color:#657789;line-height:1.4}
+.stats-section-title{margin:14px 0 8px;font-size:11px;font-weight:800;color:#52606d;text-transform:uppercase;letter-spacing:.45px}
+.stats-type-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+.stat-type-card{background:#fff;border:1px solid #dce3ed;border-radius:10px;padding:10px}
+.stat-type-title{font-size:10px;font-weight:800;color:#52606d;text-transform:uppercase;letter-spacing:.35px;margin-bottom:8px}
+.stat-type-values{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat-type-kpi{background:#f7f9fc;border-radius:7px;padding:7px 8px}
+.stat-type-kpi span{display:block;font-size:9px;color:#657789;text-transform:uppercase;font-weight:700;margin-bottom:3px}
+.stat-type-kpi strong{font-size:20px;color:#1F3864}
 .stats-error{padding:10px;border-radius:8px;background:#ffebee;color:#9f1d1d;border:1px solid #ef9a9a;font-size:12px;display:none;margin-bottom:10px}
 .slot{border:1px solid #dce3ed;border-radius:10px;margin-bottom:10px;overflow:hidden;background:#fff}
 .sh{background:#1F3864;color:#fff;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:8px;user-select:none}
@@ -136,6 +144,7 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
  .stats-controls{grid-template-columns:1fr 1fr}
  .stats-field:nth-child(5){grid-column:1/-1}
  .stats-grid{grid-template-columns:1fr 1fr}
+ .stats-type-grid{grid-template-columns:1fr 1fr}
  .stat-value{font-size:22px}
  .stats-progress{width:100%;margin-left:0}
  .clabs{display:none}
@@ -200,7 +209,7 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 <div class="stats-overlay" id="stats-overlay" onclick="chiudiStatisticheDaSfondo(event)">
  <div class="stats-modal" role="dialog" aria-modal="true" aria-labelledby="stats-title">
   <div class="stats-head">
-   <h2 id="stats-title">📊 Statistiche visite</h2>
+   <h2 id="stats-title">📊 Statistiche prestazioni</h2>
    <button class="stats-close" onclick="chiudiStatistiche()" aria-label="Chiudi">×</button>
   </div>
   <div class="stats-body">
@@ -224,8 +233,8 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
    </div>
    <div class="stats-error" id="stats-error"></div>
    <div class="stats-grid" id="stats-grid">
-    <div class="stat-card primary"><div class="stat-label">Visite programmate</div><div class="stat-value" id="stat-programmate">—</div></div>
-    <div class="stat-card good"><div class="stat-label">Visite eseguite</div><div class="stat-value" id="stat-eseguite">—</div></div>
+    <div class="stat-card primary"><div class="stat-label">Prestazioni programmate</div><div class="stat-value" id="stat-programmate">—</div></div>
+    <div class="stat-card good"><div class="stat-label">Prestazioni eseguite</div><div class="stat-value" id="stat-eseguite">—</div></div>
     <div class="stat-card bad"><div class="stat-label">Assenti</div><div class="stat-value" id="stat-assenti">—</div></div>
     <div class="stat-card warn"><div class="stat-label">Annullate</div><div class="stat-value" id="stat-annullate">—</div></div>
     <div class="stat-card warn"><div class="stat-label">Spostate</div><div class="stat-value" id="stat-spostate">—</div></div>
@@ -233,7 +242,15 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
     <div class="stat-card"><div class="stat-label">Da confermare</div><div class="stat-value" id="stat-confermare">—</div></div>
     <div class="stat-card primary"><div class="stat-label">% eseguite / programmate</div><div class="stat-value" id="stat-percentuale">—</div></div>
    </div>
-   <div class="stats-note">“Visite programmate” conta gli appuntamenti presenti in agenda nel periodo selezionato. “Visite eseguite” conta solo gli appuntamenti con esito Eseguita. I filtri per terapista e trattamento usano le assegnazioni salvate nell’agenda.</div>
+   <div class="stats-section-title">Riepilogo per tipologia di prestazione</div>
+   <div class="stats-type-grid">
+    <div class="stat-type-card"><div class="stat-type-title">Terapie</div><div class="stat-type-values"><div class="stat-type-kpi"><span>Programmate</span><strong id="stat-terapie-programmate">—</strong></div><div class="stat-type-kpi"><span>Eseguite</span><strong id="stat-terapie-eseguite">—</strong></div></div></div>
+    <div class="stat-type-card"><div class="stat-type-title">Consulenze</div><div class="stat-type-values"><div class="stat-type-kpi"><span>Programmate</span><strong id="stat-consulenze-programmate">—</strong></div><div class="stat-type-kpi"><span>Eseguite</span><strong id="stat-consulenze-eseguite">—</strong></div></div></div>
+    <div class="stat-type-card"><div class="stat-type-title">Esami baropodometrici</div><div class="stat-type-values"><div class="stat-type-kpi"><span>Programmati</span><strong id="stat-baro-programmate">—</strong></div><div class="stat-type-kpi"><span>Eseguiti</span><strong id="stat-baro-eseguite">—</strong></div></div></div>
+    <div class="stat-type-card"><div class="stat-type-title">Consulenza + Esame baro</div><div class="stat-type-values"><div class="stat-type-kpi"><span>Programmate</span><strong id="stat-combo-programmate">—</strong></div><div class="stat-type-kpi"><span>Eseguite</span><strong id="stat-combo-eseguite">—</strong></div></div></div>
+    <div class="stat-type-card"><div class="stat-type-title">Non specificate</div><div class="stat-type-values"><div class="stat-type-kpi"><span>Programmate</span><strong id="stat-nonspec-programmate">—</strong></div><div class="stat-type-kpi"><span>Eseguite</span><strong id="stat-nonspec-eseguite">—</strong></div></div></div>
+   </div>
+   <div class="stats-note">“Prestazioni programmate” conta gli appuntamenti presenti in agenda nel periodo selezionato. “Prestazioni eseguite” conta solo quelli con esito Eseguita. Il riepilogo separa Terapie, Consulenze, Esami baropodometrici e la prestazione combinata Consulenza + Esame baropodometrico; le righe senza trattamento assegnato restano visibili come “Non specificate”. I filtri per terapista e trattamento usano le assegnazioni salvate nell’agenda.</div>
   </div>
  </div>
 </div>
@@ -685,15 +702,15 @@ function buildRow(p,pi,si,fascia,assentiSlot){
   ?`<a class="stato-censimento ${metaStato.classe} link" href="${PAZIENTI_URL}" target="_blank" rel="noopener" title="Apri l'anagrafica Pazienti">${metaStato.icona} ${metaStato.etichetta} ↗</a>`
   :`<span class="stato-censimento ${metaStato.classe}" title="${escapeHtml(infoStato.motivo)}">${metaStato.icona} ${metaStato.etichetta}</span>`;
  const controlloEsito=infoStato.stato==='NON_DISPONIBILE'
-  ?'<span class="esito-nd" title="Voce operativa: esito visita non applicabile">—</span>'
-  :`<select class="esito-select ${classeEsitoVisita(esito)}" aria-label="Esito visita" onchange="salvaEsitoVisita('${fEsc}','${pEsc}',this)">${optsE}</select>`;
+  ?'<span class="esito-nd" title="Voce operativa: esito prestazione non applicabile">—</span>'
+  :`<select class="esito-select ${classeEsitoVisita(esito)}" aria-label="Esito prestazione" onchange="salvaEsitoVisita('${fEsc}','${pEsc}',this)">${optsE}</select>`;
  return `<div class="pc ${metaStato.classe}">
   <div class="pn">${badgeStato}<input type="text" value="${escapeHtml(p)}" placeholder="Nome" onchange="aggiornaP(${si},${pi},this.value,'${fEsc}')"></div>
   <div class="tr" data-label="Trattamento"><select class="${tv?'ok':''}" onchange="salvaTrattamento('${fEsc}','${pEsc}',this)"><option value="">— Trattamento —</option>${optsR}</select></div>
   <div class="t1" data-label="Terapista 1"><select class="${av?'ok':''}" onchange="salvaTerapista1(${si},'${fEsc}','${pEsc}',this)"><option value="">— T1 —</option>${optsT1}</select></div>
   <div class="t2" data-label="Terapista 2"><select class="${av2?'ok':''}" onchange="salvaTerapista2(${si},'${fEsc}','${pEsc}',this)"><option value="">— T2 —</option>${optsT2}</select></div>
   <div class="pw" data-label="Prezzo"><div class="prezzo-wrap${prv?' ok':''}"><span class="euro">€</span><input type="text" placeholder="0" value="${prv}" onchange="salvaPrezzo('${fEsc}','${pEsc}',this.value,this.closest('.prezzo-wrap'))"></div></div>
-  <div class="es" data-label="Esito visita">${controlloEsito}</div>
+  <div class="es" data-label="Esito prestazione">${controlloEsito}</div>
  </div>`;
 }
 function rerenderSlot(si){
@@ -781,7 +798,7 @@ function righeStatisticheDaGiorno(data,filtri){
    if(eventoSoloAssenza) return;
    titolo.split('/').map(s=>s.trim()).filter(Boolean).forEach(paziente=>aggiungi(sede,fascia,paziente));
   });
-  // Mantiene nello storico anche una visita già classificata (es. spostata/annullata)
+  // Mantiene nello storico anche una prestazione già classificata (es. spostata/annullata)
   // che in seguito sia stata rimossa o spostata nel calendario.
   Object.keys(data.esitiVisita||{}).forEach(key=>{
    if(!key.startsWith(sede+'|')||righe.has(key)) return;
@@ -797,7 +814,18 @@ function righeStatisticheDaGiorno(data,filtri){
   return true;
  });
 }
-function resetStatistiche(){ ['programmate','eseguite','assenti','annullate','spostate','nonconcluse','confermare','percentuale'].forEach(k=>{ const e=document.getElementById('stat-'+k); if(e)e.textContent='—'; }); }
+function categoriaPrestazione(prestazione){
+ const p=String(prestazione||'').trim();
+ if(p==='Consulenza') return 'CONSULENZA';
+ if(p==='Esame Baropodometrico') return 'BARO';
+ if(p==='Consulenza e Esame Baropodometrico') return 'COMBO';
+ if(p) return 'TERAPIA';
+ return 'NON_SPECIFICATA';
+}
+function resetStatistiche(){
+ ['programmate','eseguite','assenti','annullate','spostate','nonconcluse','confermare','percentuale'].forEach(k=>{ const e=document.getElementById('stat-'+k); if(e)e.textContent='—'; });
+ ['terapie-programmate','terapie-eseguite','consulenze-programmate','consulenze-eseguite','baro-programmate','baro-eseguite','combo-programmate','combo-eseguite','nonspec-programmate','nonspec-eseguite'].forEach(k=>{ const e=document.getElementById('stat-'+k); if(e)e.textContent='—'; });
+}
 function mostraErroreStats(msg){ const e=document.getElementById('stats-error'); e.textContent=msg; e.style.display='block'; }
 function nascondiErroreStats(){ const e=document.getElementById('stats-error'); e.textContent=''; e.style.display='none'; }
 async function calcolaStatistiche(){
@@ -830,7 +858,17 @@ async function calcolaStatistiche(){
  btn.disabled=false; prog.textContent='';
  if(falliti){ mostraErroreStats(`Non è stato possibile leggere ${falliti} giorn${falliti===1?'o':'i'} del periodo. Riprova prima di usare il dato come definitivo.`); }
  const c={programmate:tutte.length,ESEGUITA:0,ASSENTE:0,ANNULLATA:0,SPOSTATA:0,NON_CONCLUSA:0,DA_CONFERMARE:0};
- tutte.forEach(r=>{ if(c[r.esito]!==undefined)c[r.esito]++; else c.DA_CONFERMARE++; });
+ const tipi={
+  TERAPIA:{programmate:0,eseguite:0},CONSULENZA:{programmate:0,eseguite:0},
+  BARO:{programmate:0,eseguite:0},COMBO:{programmate:0,eseguite:0},
+  NON_SPECIFICATA:{programmate:0,eseguite:0}
+ };
+ tutte.forEach(r=>{
+  if(c[r.esito]!==undefined)c[r.esito]++; else c.DA_CONFERMARE++;
+  const tipo=categoriaPrestazione((r.assegnazione||{}).prestazione);
+  tipi[tipo].programmate++;
+  if(r.esito==='ESEGUITA') tipi[tipo].eseguite++;
+ });
  document.getElementById('stat-programmate').textContent=c.programmate;
  document.getElementById('stat-eseguite').textContent=c.ESEGUITA;
  document.getElementById('stat-assenti').textContent=c.ASSENTE;
@@ -839,6 +877,16 @@ async function calcolaStatistiche(){
  document.getElementById('stat-nonconcluse').textContent=c.NON_CONCLUSA;
  document.getElementById('stat-confermare').textContent=c.DA_CONFERMARE;
  document.getElementById('stat-percentuale').textContent=c.programmate?`${(c.ESEGUITA*100/c.programmate).toFixed(1).replace('.',',')}%`:'0%';
+ document.getElementById('stat-terapie-programmate').textContent=tipi.TERAPIA.programmate;
+ document.getElementById('stat-terapie-eseguite').textContent=tipi.TERAPIA.eseguite;
+ document.getElementById('stat-consulenze-programmate').textContent=tipi.CONSULENZA.programmate;
+ document.getElementById('stat-consulenze-eseguite').textContent=tipi.CONSULENZA.eseguite;
+ document.getElementById('stat-baro-programmate').textContent=tipi.BARO.programmate;
+ document.getElementById('stat-baro-eseguite').textContent=tipi.BARO.eseguite;
+ document.getElementById('stat-combo-programmate').textContent=tipi.COMBO.programmate;
+ document.getElementById('stat-combo-eseguite').textContent=tipi.COMBO.eseguite;
+ document.getElementById('stat-nonspec-programmate').textContent=tipi.NON_SPECIFICATA.programmate;
+ document.getElementById('stat-nonspec-eseguite').textContent=tipi.NON_SPECIFICATA.eseguite;
 }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&document.getElementById('stats-overlay').classList.contains('show')) chiudiStatistiche(); });
 document.addEventListener('change',e=>{ if(e.target&&['stats-da','stats-a'].includes(e.target.id)){ document.querySelectorAll('.stats-period-btn').forEach(b=>b.classList.remove('active')); const c=document.querySelector('[data-periodo="custom"]'); if(c)c.classList.add('active'); aggiornaEtichettaPeriodoStats(); } });
@@ -919,7 +967,7 @@ function render(){
     <span class="sc">${cnt} pazient${cnt===1?'e':'i'}</span>
    </div>
    <div class="sb2" id="sb${si}">
-    <div class="clabs"><span>Nome</span><span>Trattamento</span><span>Terapista 1</span><span>Terapista 2</span><span>Prezzo</span><span>Esito visita</span></div>
+    <div class="clabs"><span>Nome</span><span>Trattamento</span><span>Terapista 1</span><span>Terapista 2</span><span>Prezzo</span><span>Esito prestazione</span></div>
     <div class="plist">${rows}</div>
    </div>
   </div>`;
