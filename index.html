@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Agenda PosturalLAB">
 <meta name="theme-color" content="#1F3864">
 <title>Agenda PosturalLAB</title>
-<!-- Statistiche indicizzate v3.12 -->
+<!-- Statistiche indicizzate v3.13 + annullamento libera Calendar -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
@@ -330,7 +330,6 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
     <div class="stat-card good stat-clickable" role="button" tabindex="0" onclick="mostraDettaglioStats('Prestazioni eseguite','ALL','ESEGUITA')"><div class="stat-label">Prestazioni eseguite</div><div class="stat-value" id="stat-eseguite">—</div></div>
     <div class="stat-card bad stat-clickable" role="button" tabindex="0" onclick="mostraDettaglioStats('Assenti','ALL','ASSENTE')"><div class="stat-label">Assenti</div><div class="stat-value" id="stat-assenti">—</div></div>
     <div class="stat-card warn stat-clickable" role="button" tabindex="0" onclick="mostraDettaglioStats('Annullate','ALL','ANNULLATA')"><div class="stat-label">Annullate</div><div class="stat-value" id="stat-annullate">—</div></div>
-    <div class="stat-card warn stat-clickable" role="button" tabindex="0" onclick="mostraDettaglioStats('Spostate','ALL','SPOSTATA')"><div class="stat-label">Spostate</div><div class="stat-value" id="stat-spostate">—</div></div>
     <div class="stat-card warn stat-clickable" role="button" tabindex="0" onclick="mostraDettaglioStats('Non concluse','ALL','NON_CONCLUSA')"><div class="stat-label">Non concluse</div><div class="stat-value" id="stat-nonconcluse">—</div></div>
     <div class="stat-card stat-clickable" role="button" tabindex="0" onclick="mostraDettaglioStats('Da confermare','ALL','DA_CONFERMARE')"><div class="stat-label">Da confermare</div><div class="stat-value" id="stat-confermare">—</div></div>
     <div class="stat-card primary"><div class="stat-label">% eseguite / programmate</div><div class="stat-value" id="stat-percentuale">—</div></div>
@@ -399,7 +398,6 @@ const ESITI_VISITA = [
  {value:"DA_CONFERMARE",label:"Da confermare"},
  {value:"ESEGUITA",label:"✓ Eseguita"},
  {value:"ASSENTE",label:"✕ Assente"},
- {value:"SPOSTATA",label:"↪ Spostata"},
  {value:"ANNULLATA",label:"Annullata"},
  {value:"NON_CONCLUSA",label:"Non conclusa"}
 ];
@@ -706,7 +704,7 @@ function getSaved(fascia,paziente){ return (calData.assegnazioni||{})[`${studio}
 function chiaveRigaAgenda(fascia,paziente){ return `${studio}|${fascia}|${paziente}`; }
 function getEsitoVisita(fascia,paziente){
  const salvato=(calData.esitiVisita||{})[chiaveRigaAgenda(fascia,paziente)];
- return (salvato&&salvato.esito)||'DA_CONFERMARE';
+ const e=(salvato&&salvato.esito)||'DA_CONFERMARE'; return e==='SPOSTATA'?'ANNULLATA':e;
 }
 function updateEsitoLocal(fascia,paziente,esito){
  if(!calData.esitiVisita) calData.esitiVisita={};
@@ -790,7 +788,7 @@ function buildOpts(fascia,paziente,assentiSlot,anche,selezionato){
 function classeEsitoVisita(esito){
  const map={
   DA_CONFERMARE:'esito-da-confermare',ESEGUITA:'esito-eseguita',
-  ASSENTE:'esito-assente',SPOSTATA:'esito-spostata',
+  ASSENTE:'esito-assente',
   ANNULLATA:'esito-annullata',NON_CONCLUSA:'esito-non-conclusa'
  };
  return map[esito]||'esito-da-confermare';
@@ -799,6 +797,10 @@ function aggiornaClasseEsito(sel){ sel.className='esito-select '+classeEsitoVisi
 function salvaEsitoVisita(fascia,paziente,sel){
  const precedente=getEsitoVisita(fascia,paziente);
  const nuovo=sel.value||'DA_CONFERMARE';
+ if(nuovo==='ANNULLATA'){
+  const ok=confirm('Confermi l’annullamento di '+paziente+'?\n\nLa prestazione resterà nello storico/statistiche e il paziente verrà rimosso dal Google Calendar, liberando lo slot.');
+  if(!ok){sel.value=precedente;aggiornaClasseEsito(sel);return;}
+ }
  updateEsitoLocal(fascia,paziente,nuovo);
  patientHistoryCache.delete(normalizzaChiavePazienteClient(paziente)); aggiornaDaCompletare();
  aggiornaClasseEsito(sel);
@@ -815,6 +817,15 @@ function salvaEsitoVisita(fascia,paziente,sel){
    alert('Esito non salvato. Riprova con Aggiorna.');
   }else{
    invalidaCacheStatistiche();
+   if(nuovo==='ANNULLATA'){
+    if(data.calendarAggiornato===false){
+     alert('Annullamento registrato nelle statistiche, ma non sono riuscito a liberare automaticamente lo slot nel Calendar. Premi Aggiorna e verifica il Calendar.');
+    }else{
+     // Ricarica la giornata: il paziente annullato sparisce dal Calendar operativo,
+     // ma resta nello storico/indice statistico.
+     carica();
+    }
+   }
   }
  });
 }
@@ -878,7 +889,7 @@ function elencoDaCompletare(){
   (sl.pz||[]).filter(p=>String(p||'').trim()).forEach(p=>{
    if(censimentiReady&&statoCensimento(p).stato==='NON_DISPONIBILE')return;
    const a=getSaved(sl.f,p),esito=getEsitoVisita(sl.f,p),mancano=[];
-   const esitoNegativo=['ASSENTE','ANNULLATA','SPOSTATA'].includes(esito);
+   const esitoNegativo=['ASSENTE','ANNULLATA'].includes(esito);
    if(!esitoNegativo){
     if(!String(a.terapista||'').trim())mancano.push('Terapista');
     if(!String(a.prestazione||'').trim())mancano.push('Prestazione');
@@ -919,7 +930,7 @@ function normalizzaChiavePazienteClient(v){return String(v||'').normalize('NFD')
 function chiudiStoricoPaziente(){const o=document.getElementById('history-overlay');if(o)o.classList.remove('show');}
 function chiudiStoricoDaSfondo(e){if(e.target&&e.target.id==='history-overlay')chiudiStoricoPaziente();}
 function etichettaEsito(esito){
- const x=ESITI_VISITA.find(e=>e.value===(esito||'DA_CONFERMARE')); return x?x.label.replace('✓ ','').replace('✕ ','').replace('↪ ',''):'Da confermare';
+ const v=(esito||'DA_CONFERMARE')==='SPOSTATA'?'ANNULLATA':(esito||'DA_CONFERMARE'); const x=ESITI_VISITA.find(e=>e.value===v); return x?x.label.replace('✓ ','').replace('✕ ',''):'Da confermare';
 }
 let historyAllMode=false;
 function disattivaTuttoStorico(){historyAllMode=false;}
@@ -1172,7 +1183,7 @@ function mostraErroreStats(msg){const e=document.getElementById('stats-error');e
 function nascondiErroreStats(){const e=document.getElementById('stats-error');e.textContent='';e.style.display='none';}
 function renderSummaryStatistiche(summary){
  const c=summary.conteggi||{},tipi=summary.tipi||{};
- document.getElementById('stat-programmate').textContent=c.programmate||0;document.getElementById('stat-eseguite').textContent=c.ESEGUITA||0;document.getElementById('stat-assenti').textContent=c.ASSENTE||0;document.getElementById('stat-annullate').textContent=c.ANNULLATA||0;document.getElementById('stat-spostate').textContent=c.SPOSTATA||0;document.getElementById('stat-nonconcluse').textContent=c.NON_CONCLUSA||0;document.getElementById('stat-confermare').textContent=c.DA_CONFERMARE||0;document.getElementById('stat-percentuale').textContent=(c.programmate?((c.ESEGUITA||0)*100/c.programmate).toFixed(1).replace('.',','):'0')+'%';
+ document.getElementById('stat-programmate').textContent=c.programmate||0;document.getElementById('stat-eseguite').textContent=c.ESEGUITA||0;document.getElementById('stat-assenti').textContent=c.ASSENTE||0;document.getElementById('stat-annullate').textContent=c.ANNULLATA||0;document.getElementById('stat-nonconcluse').textContent=c.NON_CONCLUSA||0;document.getElementById('stat-confermare').textContent=c.DA_CONFERMARE||0;document.getElementById('stat-percentuale').textContent=(c.programmate?((c.ESEGUITA||0)*100/c.programmate).toFixed(1).replace('.',','):'0')+'%';
  const g=k=>tipi[k]||{programmate:0,eseguite:0};document.getElementById('stat-terapie-programmate').textContent=g('TERAPIA').programmate;document.getElementById('stat-terapie-eseguite').textContent=g('TERAPIA').eseguite;document.getElementById('stat-consulenze-programmate').textContent=g('CONSULENZA').programmate;document.getElementById('stat-consulenze-eseguite').textContent=g('CONSULENZA').eseguite;document.getElementById('stat-baro-programmate').textContent=g('BARO').programmate;document.getElementById('stat-baro-eseguite').textContent=g('BARO').eseguite;document.getElementById('stat-combo-programmate').textContent=g('COMBO').programmate;document.getElementById('stat-combo-eseguite').textContent=g('COMBO').eseguite;document.getElementById('stat-nonspec-programmate').textContent=g('NON_SPECIFICATA').programmate;document.getElementById('stat-nonspec-eseguite').textContent=g('NON_SPECIFICATA').eseguite;
 }
 async function calcolaStatistiche(){
