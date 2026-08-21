@@ -59,7 +59,7 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .stats-presets{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
 .stats-period-btn{border:1px solid #b7c4d2;background:#fff;color:#34495e;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer}
 .stats-period-btn.active{background:#1F3864;color:#fff;border-color:#1F3864}
-.stats-controls{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:8px;background:#fff;border:1px solid #dce3ed;border-radius:10px;padding:10px;margin-bottom:10px}
+.stats-controls{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));gap:8px;background:#fff;border:1px solid #dce3ed;border-radius:10px;padding:10px;margin-bottom:10px}
 .stats-field{display:flex;flex-direction:column;gap:4px}
 .stats-field label{font-size:10px;font-weight:700;color:#52606d;text-transform:uppercase;letter-spacing:.35px}
 .stats-field input,.stats-field select{width:100%;border:1px solid #ccd6e0;border-radius:7px;background:#fff;padding:7px 8px;font-size:12px}
@@ -313,6 +313,7 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
    <div class="stats-controls">
     <div class="stats-field"><label for="stats-da">Dal</label><input type="date" id="stats-da"></div>
     <div class="stats-field"><label for="stats-a">Al</label><input type="date" id="stats-a"></div>
+    <div class="stats-field"><label for="stats-paziente">Paziente</label><input type="search" id="stats-paziente" placeholder="Cognome o nome" autocomplete="off"></div>
     <div class="stats-field"><label for="stats-studio">Studio</label><select id="stats-studio"><option value="TUTTI">Entrambi</option><option value="Boccetta">Boccetta</option><option value="Trento">Trento</option></select></div>
     <div class="stats-field"><label for="stats-terapista">Terapista</label><select id="stats-terapista"><option value="">Tutti</option></select></div>
     <div class="stats-field"><label for="stats-trattamento">Trattamento</label><select id="stats-trattamento"><option value="">Tutti</option></select></div>
@@ -358,7 +359,7 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
      <button class="export-btn secondary" onclick="stampaReportStatistiche()">Stampa / Salva PDF</button>
     </div>
    </div>
-   <div class="stats-note">“Prestazioni programmate” conta gli appuntamenti presenti in agenda nel periodo selezionato. “Prestazioni eseguite” conta solo quelli con esito Eseguita. Il riepilogo separa Terapie, Consulenze, Esami baropodometrici e la prestazione combinata Consulenza + Esame baropodometrico; le righe senza trattamento assegnato restano visibili come “Non specificate”. I filtri per terapista e trattamento usano le assegnazioni salvate nell’agenda. <strong>Tocca un conteggio per vedere le prestazioni che lo compongono.</strong></div>
+   <div class="stats-note">“Prestazioni programmate” conta gli appuntamenti presenti in agenda nel periodo selezionato. “Prestazioni eseguite” conta solo quelli con esito Eseguita. Il riepilogo separa Terapie, Consulenze, Esami baropodometrici e la prestazione combinata Consulenza + Esame baropodometrico; le righe senza trattamento assegnato restano visibili come “Non specificate”. Il filtro Paziente cerca il nominativo nel periodo selezionato ignorando maiuscole, accenti, emoji e tutto ciò che è tra parentesi; i filtri per terapista e trattamento usano le assegnazioni salvate nell’agenda. <strong>Tocca un conteggio per vedere le prestazioni che lo compongono.</strong></div>
   </div>
  </div>
 </div>
@@ -585,10 +586,10 @@ function setStudio(s){
  document.querySelectorAll('.sb').forEach(b=>b.classList.toggle('active',b.textContent===`Studio ${s}`));
  if(calData) render(); else carica();
 }
-function jsonp(url,cb){
+function jsonp(url,cb,timeoutMs=10000){
  const name='cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
  const script=document.createElement('script');
- const timer=setTimeout(()=>{ delete window[name]; script.remove(); if(cb) cb(null,'timeout'); },10000);
+ const timer=setTimeout(()=>{ delete window[name]; script.remove(); if(cb) cb(null,'timeout'); },timeoutMs);
  window[name]=function(data){ clearTimeout(timer); delete window[name]; script.remove(); if(cb) cb(data); };
  script.src=url+(url.includes('?')?'&':'?')+'callback='+name;
  document.head.appendChild(script);
@@ -974,9 +975,9 @@ function apriStoricoPaziente(paziente){
  const overlay=document.getElementById('history-overlay'),title=document.getElementById('history-title');
  if(!overlay||!title)return;
  historyCurrentPatient=paziente;historyAllMode=false;title.textContent='🕘 Storico completo — '+paziente;overlay.classList.add('show');
- // Apertura intenzionalmente "a riposo": nessuna chiamata al backend finché l'utente non sceglie il periodo.
- const a=new Date();a.setHours(12,0,0,0);const da=new Date(a);da.setMonth(da.getMonth()-24);
- document.getElementById('history-da').value=isoDate(da);document.getElementById('history-a').value=isoDate(a);
+ // Apertura intenzionalmente "a riposo": campi vuoti e nessuna chiamata al backend.
+ // Il periodo viene impostato solo dall'utente (preset o Dal/Al), così non restano date pregresse/stale.
+ document.getElementById('history-da').value='';document.getElementById('history-a').value='';
  document.getElementById('history-meta').textContent='Scegli un periodo: lo storico non viene caricato automaticamente.';
  document.getElementById('history-list').innerHTML='<div class="stats-detail-empty">Seleziona 3, 6, 12, 24 mesi, Tutto lo storico oppure imposta Dal/Al e premi Cerca.</div>';
 }
@@ -1025,16 +1026,69 @@ function fetchAgendaOffset(n){
 const STATS_CACHE_TTL=5*60*1000;
 const statsRangeCache=new Map();
 function invalidaCacheStatistiche(){ statsRangeCache.clear(); }
-function fetchStatisticheRange(da,a){
+function fetchStatisticheRange(da,a,timeoutMs=10000){
  const daIso=isoDate(da),aIso=isoDate(a),key=daIso+'|'+aIso;
  const cached=statsRangeCache.get(key);
  if(cached&&Date.now()-cached.ts<STATS_CACHE_TTL) return Promise.resolve(cached.data);
  const url=SCRIPT_URL+'?action=statsRange&da='+encodeURIComponent(daIso)+'&a='+encodeURIComponent(aIso);
  return new Promise((resolve,reject)=>jsonp(url,(data,err)=>{
-  if(err||!data||data.ok!==true||!Array.isArray(data.giorni)) return reject(new Error((data&&data.errore)||'Endpoint statistiche non disponibile'));
+  if(err||!data||data.ok!==true||!Array.isArray(data.giorni)) return reject(new Error((data&&data.errore)||err||'Endpoint statistiche non disponibile'));
   statsRangeCache.set(key,{ts:Date.now(),data});
   resolve(data);
- }));
+ },timeoutMs));
+}
+function blocchiStatistiche(da,a,giorniPerBlocco=14){
+ const out=[];let d=new Date(da);
+ while(d<=a){
+  const fine=new Date(d);fine.setDate(fine.getDate()+giorniPerBlocco-1);if(fine>a)fine.setTime(a.getTime());
+  out.push({da:new Date(d),a:new Date(fine)});
+  d=new Date(fine);d.setDate(d.getDate()+1);
+ }
+ return out;
+}
+async function fetchStatistichePeriodo(da,a,onProgress){
+ const giorni=listaDate(da,a).length;
+ if(giorni<=14){
+  try{
+   if(onProgress)onProgress('Caricamento periodo…');
+   return await fetchStatisticheRange(da,a,12000);
+  }catch(_){}
+ }
+ const blocchi=blocchiStatistiche(da,a,14),raccolti=[];let indice=0,completati=0;const errori=[];
+ if(onProgress)onProgress(`Caricamento in ${blocchi.length} blocchi…`);
+ async function worker(){
+  while(indice<blocchi.length){
+   const b=blocchi[indice++];
+   try{
+    const pac=await fetchStatisticheRange(b.da,b.a,15000);
+    raccolti.push(...pac.giorni);
+   }catch(err){ errori.push({blocco:b,errore:err}); }
+   completati++;
+   if(onProgress)onProgress(`Caricamento blocchi ${completati}/${blocchi.length}`);
+  }
+ }
+ await Promise.all(Array.from({length:Math.min(3,blocchi.length)},worker));
+ if(errori.length) throw new Error('STATISTICHE_BLOCCHI_INCOMPLETI');
+ raccolti.sort((x,y)=>String(x.data||'').split('/').reverse().join('-').localeCompare(String(y.data||'').split('/').reverse().join('-')));
+ return {ok:true,giorni:raccolti,numeroGiorni:raccolti.length};
+}
+
+function normalizzaPazienteStatistiche(v){
+ return String(v||'')
+  .replace(/\([^)]*\)/g,' ') // le parentesi sono sempre semplici annotazioni
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .toLowerCase()
+  .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu,' ')
+  .replace(/[^a-z0-9]+/g,' ')
+  .replace(/\s+/g,' ').trim();
+}
+function pazienteCorrispondeFiltroStatistiche(paziente,ricerca){
+ const q=normalizzaPazienteStatistiche(ricerca);
+ if(!q)return true;
+ const p=normalizzaPazienteStatistiche(paziente);
+ if(!p)return false;
+ const paroleP=new Set(p.split(' ').filter(Boolean));
+ return q.split(' ').filter(Boolean).every(x=>paroleP.has(x)||p.includes(x));
 }
 function righeStatisticheDaGiorno(data,filtri){
  const righe=new Map(); const sedi=filtri.studio==='TUTTI'?['Boccetta','Trento']:[filtri.studio];
@@ -1065,6 +1119,7 @@ function righeStatisticheDaGiorno(data,filtri){
  });
  return [...righe.values()].filter(r=>{
   const ass=r.assegnazione||{};
+  if(filtri.paziente&&!pazienteCorrispondeFiltroStatistiche(r.paziente,filtri.paziente)) return false;
   if(filtri.terapista&&ass.terapista!==filtri.terapista&&ass.terapista2!==filtri.terapista) return false;
   if(filtri.trattamento&&ass.prestazione!==filtri.trattamento) return false;
   return true;
@@ -1206,9 +1261,9 @@ async function caricaConfrontoStats(){
  if(!da||!a)return;
  const confronto=periodoConfrontoPrecedente(da,a),prevDa=confronto.da,prevA=confronto.a;
  box.innerHTML='<div class="stats-detail-empty">Caricamento confronto…</div>';
- const filtri={studio:document.getElementById('stats-studio').value,terapista:document.getElementById('stats-terapista').value,trattamento:document.getElementById('stats-trattamento').value};
+ const filtri={studio:document.getElementById('stats-studio').value,paziente:document.getElementById('stats-paziente').value.trim(),terapista:document.getElementById('stats-terapista').value,trattamento:document.getElementById('stats-trattamento').value};
  try{
-  const pac=await fetchStatisticheRange(prevDa,prevA),prev=[];
+  const pac=await fetchStatistichePeriodo(prevDa,prevA),prev=[];
   pac.giorni.forEach(g=>prev.push(...righeStatisticheDaGiorno(g,filtri)));
   const curM=metricheRigheStats(ultimeRigheStatistiche),preM=metricheRigheStats(prev);
   const defs=[['Prestazioni',curM.programmate,preM.programmate,false,false],['Eseguite',curM.eseguite,preM.eseguite,false,false],['Terapie',curM.terapie,preM.terapie,false,false],['Assenti',curM.assenti,preM.assenti,false,true],['Incasso',curM.incasso,preM.incasso,true,false]];
@@ -1266,28 +1321,22 @@ async function calcolaStatistiche(){
  if(a<da){ mostraErroreStats('La data finale non può precedere quella iniziale.'); return; }
  const dates=listaDate(da,a);
  if(dates.length>366){ mostraErroreStats('Per evitare un carico eccessivo, seleziona un periodo massimo di 366 giorni.'); return; }
- const filtri={studio:document.getElementById('stats-studio').value,terapista:document.getElementById('stats-terapista').value,trattamento:document.getElementById('stats-trattamento').value};
+ const filtri={studio:document.getElementById('stats-studio').value,paziente:document.getElementById('stats-paziente').value.trim(),terapista:document.getElementById('stats-terapista').value,trattamento:document.getElementById('stats-trattamento').value};
  const btn=document.getElementById('stats-go'),prog=document.getElementById('stats-progress'); btn.disabled=true;
- const tutte=[]; let falliti=0;
+ const tutte=[];
  try{
-  prog.textContent='Caricamento periodo…';
-  const pacchetto=await fetchStatisticheRange(da,a);
+  // Per periodi superiori a 14 giorni partiamo direttamente a blocchi:
+  // niente attesa iniziale di un range mensile che può andare in timeout.
+  const pacchetto=await fetchStatistichePeriodo(da,a,msg=>{prog.textContent=msg;});
   prog.textContent='Elaborazione '+pacchetto.giorni.length+' giorni…';
   pacchetto.giorni.forEach(g=>tutte.push(...righeStatisticheDaGiorno(g,filtri)));
  }catch(e){
-  let completati=0,indice=0; const concorrenza=Math.min(5,dates.length);
-  prog.textContent='Modalità compatibilità…';
-  async function worker(){
-   while(indice<dates.length){
-    const i=indice++,d=dates[i];
-    try{ const data=await fetchAgendaOffset(offsetPerData(d)); tutte.push(...righeStatisticheDaGiorno(data,filtri)); }catch(err){ falliti++; }
-    completati++; prog.textContent=`Caricamento ${completati}/${dates.length}`;
-   }
-  }
-  await Promise.all(Array.from({length:concorrenza},worker));
+  btn.disabled=false;prog.textContent='';
+  mostraErroreStats('Statistiche non completate: uno o più blocchi non sono stati letti. Nessun dato parziale viene mostrato. Riprova.');
+  return;
  }
  btn.disabled=false; prog.textContent='';
- if(falliti){ mostraErroreStats(`Non è stato possibile leggere ${falliti} giorn${falliti===1?'o':'i'} del periodo. Riprova prima di usare il dato come definitivo.`); }
+ tutte.sort((x,y)=>chiaveOrdineDataStats(x.data).localeCompare(chiaveOrdineDataStats(y.data))||(x.fascia||'').localeCompare(y.fascia||''));
  ultimeRigheStatistiche=tutte.slice(); statisticheCalcolate=true;
  const c={programmate:tutte.length,ESEGUITA:0,ASSENTE:0,ANNULLATA:0,SPOSTATA:0,NON_CONCLUSA:0,DA_CONFERMARE:0};
  const tipi={
@@ -1330,6 +1379,8 @@ document.addEventListener('keydown',e=>{
  if((e.key==='Enter'||e.key===' ')&&e.target&&e.target.classList&&(e.target.classList.contains('stat-clickable')||e.target.id==='completebar')){ e.preventDefault(); e.target.click(); }
 });
 document.addEventListener('change',e=>{ if(!e.target)return; if(['stats-da','stats-a'].includes(e.target.id)){ if(statisticheCalcolate)resetStatistiche(); document.querySelectorAll('.stats-period-btn').forEach(b=>b.classList.remove('active')); const c=document.querySelector('[data-periodo="custom"]'); if(c)c.classList.add('active'); aggiornaEtichettaPeriodoStats(); } else if(['stats-studio','stats-terapista','stats-trattamento'].includes(e.target.id)){ if(statisticheCalcolate)resetStatistiche(); } });
+document.addEventListener('input',e=>{ if(e.target&&e.target.id==='stats-paziente'&&statisticheCalcolate) resetStatistiche(); });
+document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='stats-paziente'&&e.key==='Enter'){ e.preventDefault(); calcolaStatistiche(); } });
 
 function render(){
  if(!calData) return;
