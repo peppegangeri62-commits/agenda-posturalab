@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Agenda PosturalLAB">
 <meta name="theme-color" content="#1F3864">
 <title>Agenda PosturalLAB</title>
-<!-- v3.14: annullati restano in Agenda, Calendar libero, risorse operative liberate -->
+<!-- v3.16: annullati visibili con campi operativi vuoti; statistiche conservano programmato/terapista -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
@@ -362,7 +362,7 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
      <button class="export-btn secondary" onclick="stampaReportStatistiche()">Stampa / Salva PDF</button>
     </div>
    </div>
-   <div class="stats-note">“Prestazioni programmate” conta gli appuntamenti presenti in agenda nel periodo selezionato. “Prestazioni eseguite” conta solo quelli con esito Eseguita. Il riepilogo separa Terapie, Consulenze, Esami baropodometrici e la prestazione combinata Consulenza + Esame baropodometrico; le righe senza trattamento assegnato restano visibili come “Non specificate”. Il filtro Paziente cerca il nominativo nel periodo selezionato ignorando maiuscole, accenti, emoji e tutto ciò che è tra parentesi; i filtri per terapista e trattamento usano le assegnazioni salvate nell’agenda. <strong>Tocca un conteggio per vedere le prestazioni che lo compongono.</strong></div>
+   <div class="stats-note">“Prestazioni programmate” conta gli appuntamenti presenti in agenda nel periodo selezionato. “Prestazioni eseguite” conta solo quelli con esito Eseguita. Il riepilogo separa Terapie, Consulenze, Esami baropodometrici e la prestazione combinata Consulenza + Esame baropodometrico; le righe senza trattamento assegnato restano visibili come “Non specificate”. Il filtro Paziente cerca il nominativo nel periodo selezionato ignorando maiuscole, accenti, emoji e tutto ciò che è tra parentesi; i filtri per terapista e trattamento usano le assegnazioni salvate nell’agenda. Le prestazioni annullate restano conteggiate come annullate, ma non concorrono ai totali economici né alle prestazioni attribuite ai terapisti. <strong>Tocca un conteggio per vedere le prestazioni che lo compongono.</strong></div>
   </div>
  </div>
 </div>
@@ -841,9 +841,12 @@ function buildRow(p,pi,si,fascia,assentiSlot){
  const fEsc=fascia.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
  const esito=getEsitoVisita(fascia,p);
  const annullata=esito==='ANNULLATA';
- const optsT1=buildOpts(fascia,p,assentiSlot,av2?[av2]:[],av);
- const optsT2=buildOpts(fascia,p,assentiSlot,av?[av]:[],av2);
- const optsR=TRATTAMENTI.map(t=>`<option value="${t}"${tv===t?' selected':''}>${t}</option>`).join('');
+ // In una riga annullata conserviamo i dati originari solo nel backend/storico,
+ // ma operativamente le caselle devono risultare vuote e la risorsa libera.
+ const avView=annullata?'':av,av2View=annullata?'':av2,tvView=annullata?'':tv,prvView=annullata?'':prv;
+ const optsT1=buildOpts(fascia,p,assentiSlot,av2View?[av2View]:[],avView);
+ const optsT2=buildOpts(fascia,p,assentiSlot,avView?[avView]:[],av2View);
+ const optsR=TRATTAMENTI.map(t=>`<option value="${t}"${tvView===t?' selected':''}>${t}</option>`).join('');
  const infoStato=statoCensimento(p);
  const metaStato=metaStatoCensimento(infoStato.stato);
  const optsE=ESITI_VISITA.map(e=>`<option value="${e.value}"${esito===e.value?' selected':''}>${e.label}</option>`).join('');
@@ -860,10 +863,10 @@ function buildRow(p,pi,si,fascia,assentiSlot){
  const dis=annullata?' disabled aria-disabled="true"':'';
  return `<div class="pc ${metaStato.classe}${annullata?' annullata-row':''}">
   <div class="pn">${badgeStato}<div class="pn-row"><input type="text" value="${escapeHtml(p)}" placeholder="Nome"${dis} onchange="aggiornaP(${si},${pi},this.value,'${fEsc}')"><button class="history-btn" type="button" title="Storico completo" aria-label="Apri storico completo di ${escapeAttr(p)}" onclick="apriStoricoPaziente('${pEsc}')">🕘</button></div></div>
-  <div class="tr" data-label="Trattamento"><select class="${tv?'ok':''}"${dis} onchange="salvaTrattamento('${fEsc}','${pEsc}',this)"><option value="">— Trattamento —</option>${optsR}</select></div>
-  <div class="t1" data-label="Terapista 1"><select class="${av?'ok':''}"${dis} onchange="salvaTerapista1(${si},'${fEsc}','${pEsc}',this)"><option value="">— T1 —</option>${optsT1}</select></div>
-  <div class="t2" data-label="Terapista 2"><select class="${av2?'ok':''}"${dis} onchange="salvaTerapista2(${si},'${fEsc}','${pEsc}',this)"><option value="">— T2 —</option>${optsT2}</select></div>
-  <div class="pw" data-label="Prezzo"><div class="prezzo-wrap${prv?' ok':''}"><span class="euro">€</span><input type="text" placeholder="0" value="${prv}"${dis} onchange="salvaPrezzo('${fEsc}','${pEsc}',this.value,this.closest('.prezzo-wrap'))"></div></div>
+  <div class="tr" data-label="Trattamento"><select class="${tvView?'ok':''}"${dis} onchange="salvaTrattamento('${fEsc}','${pEsc}',this)"><option value="">— Trattamento —</option>${optsR}</select></div>
+  <div class="t1" data-label="Terapista 1"><select class="${avView?'ok':''}"${dis} onchange="salvaTerapista1(${si},'${fEsc}','${pEsc}',this)"><option value="">— T1 —</option>${optsT1}</select></div>
+  <div class="t2" data-label="Terapista 2"><select class="${av2View?'ok':''}"${dis} onchange="salvaTerapista2(${si},'${fEsc}','${pEsc}',this)"><option value="">— T2 —</option>${optsT2}</select></div>
+  <div class="pw" data-label="Prezzo"><div class="prezzo-wrap${prvView?' ok':''}"><span class="euro">€</span><input type="text" placeholder="" value="${prvView}"${dis} onchange="salvaPrezzo('${fEsc}','${pEsc}',this.value,this.closest('.prezzo-wrap'))"></div></div>
   <div class="es" data-label="Esito prestazione">${controlloEsito}</div>
  </div>`;
 }
@@ -1146,7 +1149,7 @@ function toggleStatsPanel(nome,btn){
 }
 function renderStatsTerapisti(){
  const box=document.getElementById('stats-panel-terapisti');if(!box)return;const righe=(ultimeStatisticheSummary&&ultimeStatisticheSummary.terapisti)||[];
- box.innerHTML='<div class="stats-extra-title">Carico per terapista</div>'+(!righe.length?'<div class="stats-detail-empty">Nessun terapista assegnato nel periodo filtrato.</div>':`<table class="stats-table"><thead><tr><th>Terapista</th><th class="num">Programmate</th><th class="num">Eseguite</th><th class="num">% eseguite</th></tr></thead><tbody>${righe.map(x=>`<tr class="stats-row-click" onclick="mostraDettaglioTerapista('${String(x.nome).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"><td><strong>${escapeHtml(x.nome)}</strong></td><td class="num">${x.programmate}</td><td class="num">${x.eseguite}</td><td class="num">${x.programmate?(x.eseguite*100/x.programmate).toFixed(1).replace('.',','):'0'}%</td></tr>`).join('')}</tbody></table><div class="stats-note">Una prestazione con T1 e T2 viene conteggiata nel carico di entrambi i terapisti.</div>`);
+ box.innerHTML='<div class="stats-extra-title">Carico per terapista</div>'+(!righe.length?'<div class="stats-detail-empty">Nessun terapista assegnato nel periodo filtrato.</div>':`<table class="stats-table"><thead><tr><th>Terapista</th><th class="num">Programmate</th><th class="num">Eseguite</th><th class="num">Annullate</th><th class="num">% eseguite</th><th class="num">% annullate</th></tr></thead><tbody>${righe.map(x=>`<tr class="stats-row-click" onclick="mostraDettaglioTerapista('${String(x.nome).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"><td><strong>${escapeHtml(x.nome)}</strong></td><td class="num">${x.programmate}</td><td class="num">${x.eseguite}</td><td class="num">${x.annullate||0}</td><td class="num">${x.programmate?(x.eseguite*100/x.programmate).toFixed(1).replace('.',','):'0'}%</td><td class="num">${x.programmate?((x.annullate||0)*100/x.programmate).toFixed(1).replace('.',','):'0'}%</td></tr>`).join('')}</tbody></table><div class="stats-note">Le prestazioni annullate restano conteggiate tra le programmate del terapista e nelle annullate, ma non tra le eseguite. Con T1 e T2 la prestazione viene conteggiata nel carico di entrambi.</div>`);
 }
 async function mostraDettaglioTerapista(nome){
  if(!statisticheCalcolate)return;const da=dataDaIso(document.getElementById('stats-da').value),a=dataDaIso(document.getElementById('stats-a').value),title=document.getElementById('stats-detail-title'),meta=document.getElementById('stats-detail-meta'),list=document.getElementById('stats-detail-list'),overlay=document.getElementById('stats-detail-overlay');
@@ -1156,7 +1159,7 @@ async function mostraDettaglioTerapista(nome){
 function tabellaEconomicaFast(rows,label){return `<div class="stats-extra-title">${label}</div><table class="stats-table"><thead><tr><th>Voce</th><th class="num">Valore programmato</th><th class="num">Eseguito / incasso</th></tr></thead><tbody>${(rows||[]).map(x=>`<tr><td><strong>${escapeHtml(x.nome)}</strong></td><td class="num">${euroStats(x.valore)}</td><td class="num">${euroStats(x.incasso)}</td></tr>`).join('')}</tbody></table>`;}
 function renderStatsEconomico(){
  const box=document.getElementById('stats-panel-economico');if(!box)return;const e=(ultimeStatisticheSummary&&ultimeStatisticheSummary.economico)||{totale:{valore:0,incasso:0},senzaPrezzo:0,studio:[],tipo:[],terapista:[]};
- box.innerHTML=`<div class="stats-kpi-row"><div class="stats-mini-card"><div class="stats-mini-label">Valore programmato</div><div class="stats-mini-value">${euroStats(e.totale.valore)}</div></div><div class="stats-mini-card"><div class="stats-mini-label">Prestazioni eseguite / incasso</div><div class="stats-mini-value">${euroStats(e.totale.incasso)}</div></div><div class="stats-mini-card"><div class="stats-mini-label">Senza prezzo</div><div class="stats-mini-value">${e.senzaPrezzo||0}</div></div></div>${tabellaEconomicaFast(e.studio,'Per studio')}${tabellaEconomicaFast(e.tipo,'Per tipologia')}${tabellaEconomicaFast(e.terapista,'Per terapista')}<div class="stats-note">Con T1 e T2 l’importo viene ripartito in parti uguali fra i due terapisti. Gli importi “incasso” considerano soltanto le prestazioni con esito Eseguita.</div>`;
+ box.innerHTML=`<div class="stats-kpi-row"><div class="stats-mini-card"><div class="stats-mini-label">Valore programmato</div><div class="stats-mini-value">${euroStats(e.totale.valore)}</div></div><div class="stats-mini-card"><div class="stats-mini-label">Prestazioni eseguite / incasso</div><div class="stats-mini-value">${euroStats(e.totale.incasso)}</div></div><div class="stats-mini-card"><div class="stats-mini-label">Senza prezzo</div><div class="stats-mini-value">${e.senzaPrezzo||0}</div></div></div>${tabellaEconomicaFast(e.studio,'Per studio')}${tabellaEconomicaFast(e.tipo,'Per tipologia')}${tabellaEconomicaFast(e.terapista,'Per terapista')}<div class="stats-note">Con T1 e T2 l’importo viene ripartito in parti uguali fra i due terapisti. Il valore programmato comprende anche le prestazioni annullate; gli importi “incasso” considerano soltanto le prestazioni con esito Eseguita.</div>`;
 }
 function periodoInteroMese(da,a){return !!(da&&a&&da.getFullYear()===a.getFullYear()&&da.getMonth()===a.getMonth()&&da.getDate()===1&&a.getDate()===new Date(a.getFullYear(),a.getMonth()+1,0,12).getDate());}
 function nomeMeseAnno(d){const s=new Intl.DateTimeFormat('it-IT',{month:'long',year:'numeric'}).format(d);return s.charAt(0).toUpperCase()+s.slice(1);}
