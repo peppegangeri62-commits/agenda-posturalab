@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Agenda PosturalLAB">
 <meta name="theme-color" content="#1F3864">
 <title>Agenda PosturalLAB</title>
-<!-- Statistiche indicizzate v3.13 + annullamento libera Calendar -->
+<!-- v3.14: annullati restano in Agenda, Calendar libero, risorse operative liberate -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
@@ -109,6 +109,9 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .pn-row input{min-width:0;flex:1}
 .history-btn{flex:0 0 auto;width:30px;height:30px;border:1px solid #b7c4d2;border-radius:7px;background:#fff;color:#1F3864;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
 .history-btn:hover{background:#e8f0fe;border-color:#8ba7cb}
+.pc.annullata-row{background:#fff4f4;border-color:#e8b4b4;opacity:.88}
+.pc.annullata-row .pn input,.pc.annullata-row select:disabled,.pc.annullata-row input:disabled{background:#f3f3f3;color:#6b7280;cursor:default;opacity:1}
+.esito-static-annullata{display:inline-flex;align-items:center;min-height:31px;padding:6px 9px;border-radius:7px;border:1px solid #ef9a9a;background:#ffebee;color:#9f1d1d;font-size:12px;font-weight:800;white-space:nowrap}
 .stats-tools{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
 .stats-tool-btn{border:1px solid #b7c4d2;background:#fff;color:#34495e;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer}
 .stats-tool-btn:hover,.stats-tool-btn.active{background:#1F3864;color:#fff;border-color:#1F3864}
@@ -695,6 +698,7 @@ function carica(){
   calData=data;
   if(!calData.assegnazioni) calData.assegnazioni={};
   if(!calData.esitiVisita) calData.esitiVisita={};
+  if(!Array.isArray(calData.annullatiAgenda)) calData.annullatiAgenda=[];
   document.getElementById('last-update').textContent='Aggiornato: '+new Date().toLocaleTimeString('it-IT');
   render();
   caricaCensimenti();
@@ -770,7 +774,8 @@ function fasceOverlap(f1,f2){
 function getOccupatiSlot(fascia,pazienteEscluso){
  const altro=studio==='Boccetta'?'Trento':'Boccetta';
  const pz=slotsMap[fascia]?.pz||[];
- const daCorrente=pz.filter(p=>p!==pazienteEscluso).flatMap(p=>{const s=getSaved(fascia,p);return[s.terapista,s.terapista2].filter(Boolean);});
+ // Una prestazione ANNULLATA resta visibile in Agenda ma non occupa più risorse operative.
+ const daCorrente=pz.filter(p=>p!==pazienteEscluso&&getEsitoVisita(fascia,p)!=='ANNULLATA').flatMap(p=>{const s=getSaved(fascia,p);return[s.terapista,s.terapista2].filter(Boolean);});
  const evA=(calData.studi||{})[altro]||[];
  const daAltro=evA.filter(ev=>{if(ev.tuttoCiorno)return false;return fasceOverlap(fmtT(ev.inizio)+'–'+fmtT(ev.fine),fascia);}).flatMap(ev=>{
   const fA=fmtT(ev.inizio)+'–'+fmtT(ev.fine);
@@ -798,7 +803,7 @@ function salvaEsitoVisita(fascia,paziente,sel){
  const precedente=getEsitoVisita(fascia,paziente);
  const nuovo=sel.value||'DA_CONFERMARE';
  if(nuovo==='ANNULLATA'){
-  const ok=confirm('Confermi l’annullamento di '+paziente+'?\n\nLa prestazione resterà nello storico/statistiche e il paziente verrà rimosso dal Google Calendar, liberando lo slot.');
+  const ok=confirm('Confermi l’annullamento di '+paziente+'?\n\nLa prestazione resterà visibile nell’Agenda come ANNULLATA e nello storico/statistiche. Dal Google Calendar verrà rimossa, liberando lo slot e le risorse operative (es. terapista).');
   if(!ok){sel.value=precedente;aggiornaClasseEsito(sel);return;}
  }
  updateEsitoLocal(fascia,paziente,nuovo);
@@ -821,8 +826,8 @@ function salvaEsitoVisita(fascia,paziente,sel){
     if(data.calendarAggiornato===false){
      alert('Annullamento registrato nelle statistiche, ma non sono riuscito a liberare automaticamente lo slot nel Calendar. Premi Aggiorna e verifica il Calendar.');
     }else{
-     // Ricarica la giornata: il paziente annullato sparisce dal Calendar operativo,
-     // ma resta nello storico/indice statistico.
+     // Ricarica la giornata: il paziente sparisce dal Calendar operativo ma
+     // viene reinserito nell'Agenda dall'archivio annullati; le sue risorse non occupano più lo slot.
      carica();
     }
    }
@@ -834,25 +839,31 @@ function buildRow(p,pi,si,fascia,assentiSlot){
  const av=saved.terapista||'',av2=saved.terapista2||'',tv=saved.prestazione||'',prv=saved.prezzo||'';
  const pEsc=p.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
  const fEsc=fascia.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+ const esito=getEsitoVisita(fascia,p);
+ const annullata=esito==='ANNULLATA';
  const optsT1=buildOpts(fascia,p,assentiSlot,av2?[av2]:[],av);
  const optsT2=buildOpts(fascia,p,assentiSlot,av?[av]:[],av2);
  const optsR=TRATTAMENTI.map(t=>`<option value="${t}"${tv===t?' selected':''}>${t}</option>`).join('');
  const infoStato=statoCensimento(p);
  const metaStato=metaStatoCensimento(infoStato.stato);
- const esito=getEsitoVisita(fascia,p);
  const optsE=ESITI_VISITA.map(e=>`<option value="${e.value}"${esito===e.value?' selected':''}>${e.label}</option>`).join('');
- const badgeStato=infoStato.stato==='CENSITO'
-  ?`<a class="stato-censimento ${metaStato.classe} link" href="${PAZIENTI_URL}" target="_blank" rel="noopener" title="Apri l'anagrafica Pazienti">${metaStato.icona} ${metaStato.etichetta} ↗</a>`
-  :`<span class="stato-censimento ${metaStato.classe}" title="${escapeHtml(infoStato.motivo)}">${metaStato.icona} ${metaStato.etichetta}</span>`;
- const controlloEsito=infoStato.stato==='NON_DISPONIBILE'
-  ?'<span class="esito-nd" title="Voce operativa: esito prestazione non applicabile">—</span>'
-  :`<select class="esito-select ${classeEsitoVisita(esito)}" aria-label="Esito prestazione" onchange="salvaEsitoVisita('${fEsc}','${pEsc}',this)">${optsE}</select>`;
- return `<div class="pc ${metaStato.classe}">
-  <div class="pn">${badgeStato}<div class="pn-row"><input type="text" value="${escapeHtml(p)}" placeholder="Nome" onchange="aggiornaP(${si},${pi},this.value,'${fEsc}')"><button class="history-btn" type="button" title="Storico completo" aria-label="Apri storico completo di ${escapeAttr(p)}" onclick="apriStoricoPaziente('${pEsc}')">🕘</button></div></div>
-  <div class="tr" data-label="Trattamento"><select class="${tv?'ok':''}" onchange="salvaTrattamento('${fEsc}','${pEsc}',this)"><option value="">— Trattamento —</option>${optsR}</select></div>
-  <div class="t1" data-label="Terapista 1"><select class="${av?'ok':''}" onchange="salvaTerapista1(${si},'${fEsc}','${pEsc}',this)"><option value="">— T1 —</option>${optsT1}</select></div>
-  <div class="t2" data-label="Terapista 2"><select class="${av2?'ok':''}" onchange="salvaTerapista2(${si},'${fEsc}','${pEsc}',this)"><option value="">— T2 —</option>${optsT2}</select></div>
-  <div class="pw" data-label="Prezzo"><div class="prezzo-wrap${prv?' ok':''}"><span class="euro">€</span><input type="text" placeholder="0" value="${prv}" onchange="salvaPrezzo('${fEsc}','${pEsc}',this.value,this.closest('.prezzo-wrap'))"></div></div>
+ const badgeStato=annullata
+  ?'<span class="stato-censimento stato-nd" title="Prestazione annullata: conservata in Agenda, non presente nel Calendar operativo">✕ Annullata</span>'
+  :(infoStato.stato==='CENSITO'
+   ?`<a class="stato-censimento ${metaStato.classe} link" href="${PAZIENTI_URL}" target="_blank" rel="noopener" title="Apri l'anagrafica Pazienti">${metaStato.icona} ${metaStato.etichetta} ↗</a>`
+   :`<span class="stato-censimento ${metaStato.classe}" title="${escapeHtml(infoStato.motivo)}">${metaStato.icona} ${metaStato.etichetta}</span>`);
+ const controlloEsito=annullata
+  ?'<span class="esito-static-annullata" aria-label="Esito prestazione: annullata">✕ Annullata</span>'
+  :(infoStato.stato==='NON_DISPONIBILE'
+   ?'<span class="esito-nd" title="Voce operativa: esito prestazione non applicabile">—</span>'
+   :`<select class="esito-select ${classeEsitoVisita(esito)}" aria-label="Esito prestazione" onchange="salvaEsitoVisita('${fEsc}','${pEsc}',this)">${optsE}</select>`);
+ const dis=annullata?' disabled aria-disabled="true"':'';
+ return `<div class="pc ${metaStato.classe}${annullata?' annullata-row':''}">
+  <div class="pn">${badgeStato}<div class="pn-row"><input type="text" value="${escapeHtml(p)}" placeholder="Nome"${dis} onchange="aggiornaP(${si},${pi},this.value,'${fEsc}')"><button class="history-btn" type="button" title="Storico completo" aria-label="Apri storico completo di ${escapeAttr(p)}" onclick="apriStoricoPaziente('${pEsc}')">🕘</button></div></div>
+  <div class="tr" data-label="Trattamento"><select class="${tv?'ok':''}"${dis} onchange="salvaTrattamento('${fEsc}','${pEsc}',this)"><option value="">— Trattamento —</option>${optsR}</select></div>
+  <div class="t1" data-label="Terapista 1"><select class="${av?'ok':''}"${dis} onchange="salvaTerapista1(${si},'${fEsc}','${pEsc}',this)"><option value="">— T1 —</option>${optsT1}</select></div>
+  <div class="t2" data-label="Terapista 2"><select class="${av2?'ok':''}"${dis} onchange="salvaTerapista2(${si},'${fEsc}','${pEsc}',this)"><option value="">— T2 —</option>${optsT2}</select></div>
+  <div class="pw" data-label="Prezzo"><div class="prezzo-wrap${prv?' ok':''}"><span class="euro">€</span><input type="text" placeholder="0" value="${prv}"${dis} onchange="salvaPrezzo('${fEsc}','${pEsc}',this.value,this.closest('.prezzo-wrap'))"></div></div>
   <div class="es" data-label="Esito prestazione">${controlloEsito}</div>
  </div>`;
 }
@@ -1238,6 +1249,17 @@ function render(){
   }
 
   titoloSenzaNota.split('/').map(s=>s.trim()).filter(Boolean).forEach(p=>slotsMap[f].pz.push(p));
+ });
+
+ // Gli annullati sono stati rimossi dal Calendar operativo, ma vengono reinseriti
+ // SOLO nella vista Agenda usando l'archivio EsitiVisita. Non occupano risorse.
+ (calData.annullatiAgenda||[]).filter(r=>r&&r.studio===studio).forEach(r=>{
+  const f=String(r.fascia||'').trim(),p=String(r.paziente||'').trim();
+  if(!f||!p)return;
+  if(!slotsMap[f]) slotsMap[f]={f,pz:[],note:''};
+  const np=normalizzaChiavePazienteClient(p);
+  const presente=slotsMap[f].pz.some(x=>normalizzaChiavePazienteClient(x)===np);
+  if(!presente) slotsMap[f].pz.push(p);
  });
 
  // ── Assenze da fasce dell'altro studio per ore sovrapposte ──
