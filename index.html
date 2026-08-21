@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Agenda PosturalLAB">
 <meta name="theme-color" content="#1F3864">
 <title>Agenda PosturalLAB</title>
+<!-- Statistiche indicizzate v3.12 -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
@@ -1024,107 +1025,72 @@ function fetchAgendaOffset(n){
  return new Promise((resolve,reject)=>jsonp(SCRIPT_URL+'?giorni='+n,(data,err)=>err||!data?reject(new Error('Dati non disponibili')):resolve(data)));
 }
 const STATS_CACHE_TTL=5*60*1000;
-const statsRangeCache=new Map();
-function invalidaCacheStatistiche(){ statsRangeCache.clear(); }
-function fetchStatisticheRange(da,a,timeoutMs=10000){
- const daIso=isoDate(da),aIso=isoDate(a),key=daIso+'|'+aIso;
- const cached=statsRangeCache.get(key);
- if(cached&&Date.now()-cached.ts<STATS_CACHE_TTL) return Promise.resolve(cached.data);
- const url=SCRIPT_URL+'?action=statsRange&da='+encodeURIComponent(daIso)+'&a='+encodeURIComponent(aIso);
+const statsFastCache=new Map();
+const statsDetailCache=new Map();
+let statisticheCalcolate=false;
+let ultimeStatisticheSummary=null;
+let ultimeStatisticheIndice=null;
+let ultimiFiltriStatistiche=null;
+
+function invalidaCacheStatistiche(){ statsFastCache.clear(); statsDetailCache.clear(); }
+function filtriStatisticheCorrenti(){
+ return {
+  studio:document.getElementById('stats-studio').value,
+  paziente:document.getElementById('stats-paziente').value.trim(),
+  terapista:document.getElementById('stats-terapista').value,
+  trattamento:document.getElementById('stats-trattamento').value
+ };
+}
+function qsStats(f){
+ return '&studio='+encodeURIComponent(f.studio||'TUTTI')+'&paziente='+encodeURIComponent(f.paziente||'')+'&terapista='+encodeURIComponent(f.terapista||'')+'&trattamento='+encodeURIComponent(f.trattamento||'');
+}
+function erroreStatsApi(data,err,fallback){
+ const e=new Error((data&&data.errore)||err||fallback||'Errore statistiche');
+ e.code=(data&&data.errore)||err||''; return e;
+}
+function fetchStatisticheFast(da,a,filtri,timeoutMs=25000){
+ const daIso=isoDate(da),aIso=isoDate(a),key=[daIso,aIso,filtri.studio,filtri.paziente,filtri.terapista,filtri.trattamento].join('|');
+ const cached=statsFastCache.get(key);if(cached&&Date.now()-cached.ts<STATS_CACHE_TTL)return Promise.resolve(cached.data);
+ const url=SCRIPT_URL+'?action=statsFast&da='+encodeURIComponent(daIso)+'&a='+encodeURIComponent(aIso)+qsStats(filtri);
  return new Promise((resolve,reject)=>jsonp(url,(data,err)=>{
-  if(err||!data||data.ok!==true||!Array.isArray(data.giorni)) return reject(new Error((data&&data.errore)||err||'Endpoint statistiche non disponibile'));
-  statsRangeCache.set(key,{ts:Date.now(),data});
-  resolve(data);
+  if(err||!data||data.ok!==true||!data.summary)return reject(erroreStatsApi(data,err,'Statistiche non disponibili'));
+  statsFastCache.set(key,{ts:Date.now(),data});resolve(data);
  },timeoutMs));
 }
-function blocchiStatistiche(da,a,giorniPerBlocco=14){
- const out=[];let d=new Date(da);
- while(d<=a){
-  const fine=new Date(d);fine.setDate(fine.getDate()+giorniPerBlocco-1);if(fine>a)fine.setTime(a.getTime());
-  out.push({da:new Date(d),a:new Date(fine)});
-  d=new Date(fine);d.setDate(d.getDate()+1);
- }
- return out;
-}
-async function fetchStatistichePeriodo(da,a,onProgress){
- const giorni=listaDate(da,a).length;
- if(giorni<=14){
-  try{
-   if(onProgress)onProgress('Caricamento periodo…');
-   return await fetchStatisticheRange(da,a,12000);
-  }catch(_){}
- }
- const blocchi=blocchiStatistiche(da,a,14),raccolti=[];let indice=0,completati=0;const errori=[];
- if(onProgress)onProgress(`Caricamento in ${blocchi.length} blocchi…`);
- async function worker(){
-  while(indice<blocchi.length){
-   const b=blocchi[indice++];
-   try{
-    const pac=await fetchStatisticheRange(b.da,b.a,15000);
-    raccolti.push(...pac.giorni);
-   }catch(err){ errori.push({blocco:b,errore:err}); }
-   completati++;
-   if(onProgress)onProgress(`Caricamento blocchi ${completati}/${blocchi.length}`);
-  }
- }
- await Promise.all(Array.from({length:Math.min(3,blocchi.length)},worker));
- if(errori.length) throw new Error('STATISTICHE_BLOCCHI_INCOMPLETI');
- raccolti.sort((x,y)=>String(x.data||'').split('/').reverse().join('-').localeCompare(String(y.data||'').split('/').reverse().join('-')));
- return {ok:true,giorni:raccolti,numeroGiorni:raccolti.length};
+function fetchDettaglioStatisticheFast(da,a,filtri,tipo='ALL',esito='ALL',terapistaOverride=null,timeoutMs=30000){
+ const f={...filtri};if(terapistaOverride!==null)f.terapista=terapistaOverride;
+ const daIso=isoDate(da),aIso=isoDate(a),key=[daIso,aIso,f.studio,f.paziente,f.terapista,f.trattamento,tipo,esito].join('|');
+ const cached=statsDetailCache.get(key);if(cached&&Date.now()-cached.ts<STATS_CACHE_TTL)return Promise.resolve(cached.data);
+ const url=SCRIPT_URL+'?action=statsFastDetail&da='+encodeURIComponent(daIso)+'&a='+encodeURIComponent(aIso)+qsStats(f)+'&tipo='+encodeURIComponent(tipo)+'&esito='+encodeURIComponent(esito);
+ return new Promise((resolve,reject)=>jsonp(url,(data,err)=>{
+  if(err||!data||data.ok!==true||!Array.isArray(data.righe))return reject(erroreStatsApi(data,err,'Dettaglio non disponibile'));
+  statsDetailCache.set(key,{ts:Date.now(),data});resolve(data);
+ },timeoutMs));
 }
 
-function normalizzaPazienteStatistiche(v){
- return String(v||'')
-  .replace(/\([^)]*\)/g,' ') // le parentesi sono sempre semplici annotazioni
-  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-  .toLowerCase()
-  .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu,' ')
-  .replace(/[^a-z0-9]+/g,' ')
-  .replace(/\s+/g,' ').trim();
+function mostraIndiceNonProntoStats(codice){
+ const e=document.getElementById('stats-error');
+ let testo='L’indice veloce delle statistiche non è ancora stato preparato.';
+ if(codice==='INTERVALLO_PRIMA_INDICE')testo='Il periodo richiesto inizia prima dei dati attualmente indicizzati.';
+ if(codice==='INTERVALLO_DOPO_INDICE')testo='Il periodo richiesto supera i dati attualmente indicizzati.';
+ e.innerHTML=escapeHtml(testo)+' <button class="stats-go" style="margin-left:8px;padding:5px 9px" onclick="inizializzaIndiceStatistiche()">Prepara / riallinea indice</button>';
+ e.style.display='block';
 }
-function pazienteCorrispondeFiltroStatistiche(paziente,ricerca){
- const q=normalizzaPazienteStatistiche(ricerca);
- if(!q)return true;
- const p=normalizzaPazienteStatistiche(paziente);
- if(!p)return false;
- const paroleP=new Set(p.split(' ').filter(Boolean));
- return q.split(' ').filter(Boolean).every(x=>paroleP.has(x)||p.includes(x));
+async function inizializzaIndiceStatistiche(){
+ const btn=document.getElementById('stats-go'),prog=document.getElementById('stats-progress'),err=document.getElementById('stats-error');
+ btn.disabled=true;prog.textContent='Preparazione indice una tantum…';err.style.display='none';
+ const start='2024-01-01';const a=new Date();a.setHours(12,0,0,0);a.setDate(a.getDate()+400);
+ const url=SCRIPT_URL+'?action=statsIndexSetup&da='+encodeURIComponent(start)+'&a='+encodeURIComponent(isoDate(a));
+ try{
+  const data=await new Promise((resolve,reject)=>jsonp(url,(d,e)=>e||!d||d.ok!==true?reject(erroreStatsApi(d,e,'Preparazione indice non riuscita')):resolve(d),360000));
+  invalidaCacheStatistiche();
+  prog.textContent='Indice pronto: '+(data.righe||0)+' prestazioni indicizzate';
+  setTimeout(()=>{prog.textContent='';calcolaStatistiche();},600);
+ }catch(e){
+  prog.textContent='';mostraErroreStats('Preparazione indice non completata: '+(e.message||'errore sconosciuto')+'.');
+ }finally{btn.disabled=false;}
 }
-function righeStatisticheDaGiorno(data,filtri){
- const righe=new Map(); const sedi=filtri.studio==='TUTTI'?['Boccetta','Trento']:[filtri.studio];
- function aggiungi(sede,fascia,paziente){
-  const key=`${sede}|${fascia}|${paziente}`;
-  const ass=(data.assegnazioni||{})[key]||{};
-  const e=(data.esitiVisita||{})[key];
-  righe.set(key,{data:data.data||'',sede,fascia,paziente,esito:(e&&e.esito)||'DA_CONFERMARE',assegnazione:ass});
- }
- sedi.forEach(sede=>{
-  const eventi=(data.studi||{})[sede]||[];
-  eventi.forEach(ev=>{
-   if(ev.tuttoCiorno) return;
-   const fascia=fmtT(ev.inizio)+'–'+fmtT(ev.fine), t=ev.titolo||'';
-   const titolo=t.replace(/^\([^)]+\)\s*/,'').trim();
-   const eventoSoloAssenza=isNotaAssenza(titolo)&&parseAssenti(titolo).length&&!titolo.includes('/');
-   if(eventoSoloAssenza) return;
-   titolo.split('/').map(s=>s.trim()).filter(Boolean).forEach(paziente=>aggiungi(sede,fascia,paziente));
-  });
-  // Mantiene nello storico anche una prestazione già classificata (es. spostata/annullata)
-  // che in seguito sia stata rimossa o spostata nel calendario.
-  Object.keys(data.esitiVisita||{}).forEach(key=>{
-   if(!key.startsWith(sede+'|')||righe.has(key)) return;
-   const parti=key.split('|'); if(parti.length<3) return;
-   const fascia=parti[1],paziente=parti.slice(2).join('|');
-   if(fascia&&paziente) aggiungi(sede,fascia,paziente);
-  });
- });
- return [...righe.values()].filter(r=>{
-  const ass=r.assegnazione||{};
-  if(filtri.paziente&&!pazienteCorrispondeFiltroStatistiche(r.paziente,filtri.paziente)) return false;
-  if(filtri.terapista&&ass.terapista!==filtri.terapista&&ass.terapista2!==filtri.terapista) return false;
-  if(filtri.trattamento&&ass.prestazione!==filtri.trattamento) return false;
-  return true;
- });
-}
+
 function categoriaPrestazione(prestazione){
  const p=String(prestazione||'').trim();
  if(p==='Consulenza') return 'CONSULENZA';
@@ -1133,61 +1099,23 @@ function categoriaPrestazione(prestazione){
  if(p) return 'TERAPIA';
  return 'NON_SPECIFICATA';
 }
-let ultimeRigheStatistiche=[];
-let statisticheCalcolate=false;
-function chiudiDettaglioStats(){
- const o=document.getElementById('stats-detail-overlay'); if(o)o.classList.remove('show');
-}
-function chiudiDettaglioStatsDaSfondo(e){ if(e.target&&e.target.id==='stats-detail-overlay') chiudiDettaglioStats(); }
-function chiaveOrdineDataStats(v){
- const m=String(v||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
- return m?`${m[3]}${m[2]}${m[1]}`:'99999999';
-}
-function mostraDettaglioStats(titolo,tipo,esito){
- if(!statisticheCalcolate){ mostraErroreStats('Calcola prima le statistiche del periodo.'); return; }
- let righe=ultimeRigheStatistiche.filter(r=>{
-  if(tipo!=='ALL'&&categoriaPrestazione((r.assegnazione||{}).prestazione)!==tipo) return false;
-  if(esito!=='ALL'&&r.esito!==esito) return false;
-  return true;
- });
- righe=righe.slice().sort((a,b)=>{
-  const ka=chiaveOrdineDataStats(a.data)+(a.fascia||'')+(a.sede||'')+(a.paziente||'');
-  const kb=chiaveOrdineDataStats(b.data)+(b.fascia||'')+(b.sede||'')+(b.paziente||'');
-  return ka.localeCompare(kb,'it');
- });
- const title=document.getElementById('stats-detail-title'),meta=document.getElementById('stats-detail-meta'),list=document.getElementById('stats-detail-list'),overlay=document.getElementById('stats-detail-overlay');
- if(!title||!meta||!list||!overlay)return;
- title.textContent=titolo;
- meta.textContent=`${righe.length} ${righe.length===1?'prestazione':'prestazioni'} — ${document.getElementById('stats-period-label').textContent}`;
- if(!righe.length){
-  list.innerHTML='<div class="stats-detail-empty">Nessuna prestazione in questa casella con i filtri selezionati.</div>';
- }else{
-  list.innerHTML=righe.map(r=>{
-   const a=r.assegnazione||{};
-   const terapisti=[a.terapista,a.terapista2].filter(Boolean).join(' + ')||'—';
-   const prest=a.prestazione||'Non specificata';
-   return `<div class="stats-detail-row">
-    <div class="stats-detail-patient">${escapeHtml(r.paziente)}</div>
-    <div class="stats-detail-small"><strong>${escapeHtml(r.data||'—')}</strong><br>${escapeHtml(r.fascia||'—')}</div>
-    <div class="stats-detail-small"><strong>${escapeHtml(r.sede||'—')}</strong><br>${escapeHtml(prest)}</div>
-    <div class="stats-detail-small"><strong>Terapista</strong><br>${escapeHtml(terapisti)}</div>
-    <div class="stats-detail-small"><strong>Esito</strong><br>${escapeHtml((r.esito||'DA_CONFERMARE').replace(/_/g,' ').toLowerCase().replace(/^./,c=>c.toUpperCase()))}</div>
-   </div>`;
-  }).join('');
- }
- overlay.classList.add('show');
-}
-function parsePrezzoStats(v){
- let s=String(v??'').trim().replace(/\s/g,'').replace(/€/g,'');
- if(!s)return 0;
- if(s.includes(',')&&s.includes('.'))s=s.replace(/\./g,'').replace(',','.');else s=s.replace(',','.');
- const n=parseFloat(s);return Number.isFinite(n)?n:0;
-}
+function etichettaCategoria(c){return {TERAPIA:'Terapie',CONSULENZA:'Consulenze',BARO:'Esami baropodometrici',COMBO:'Consulenza + Esame baro',NON_SPECIFICATA:'Non specificate'}[c]||c;}
+function parsePrezzoStats(v){let s=String(v??'').trim().replace(/\s/g,'').replace(/€/g,'');if(!s)return 0;if(s.includes(',')&&s.includes('.'))s=s.replace(/\./g,'').replace(',','.');else s=s.replace(',','.');const n=parseFloat(s);return Number.isFinite(n)?n:0;}
 function euroStats(v){return new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:2}).format(Number(v)||0);}
-function metricheRigheStats(righe){
- const m={programmate:righe.length,eseguite:0,assenti:0,terapie:0,incasso:0,valore:0};
- righe.forEach(r=>{const p=parsePrezzoStats((r.assegnazione||{}).prezzo);m.valore+=p;if(r.esito==='ESEGUITA'){m.eseguite++;m.incasso+=p;}if(r.esito==='ASSENTE')m.assenti++;if(categoriaPrestazione((r.assegnazione||{}).prestazione)==='TERAPIA')m.terapie++;});return m;
+function chiaveOrdineDataStats(v){const m=String(v||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?`${m[3]}${m[2]}${m[1]}`:'99999999';}
+
+function chiudiDettaglioStats(){const o=document.getElementById('stats-detail-overlay');if(o)o.classList.remove('show');}
+function chiudiDettaglioStatsDaSfondo(e){if(e.target&&e.target.id==='stats-detail-overlay')chiudiDettaglioStats();}
+function renderRigheDettaglioStats(righe){
+ return righe.length?righe.map(r=>{const a=r.assegnazione||{},ter=[a.terapista,a.terapista2].filter(Boolean).join(' + ')||'—';return `<div class="stats-detail-row"><div class="stats-detail-patient">${escapeHtml(r.paziente)}</div><div class="stats-detail-small"><strong>${escapeHtml(r.data||'—')}</strong><br>${escapeHtml(r.fascia||'—')}</div><div class="stats-detail-small"><strong>${escapeHtml(r.sede||'—')}</strong><br>${escapeHtml(a.prestazione||'Non specificata')}</div><div class="stats-detail-small"><strong>Terapista</strong><br>${escapeHtml(ter)}</div><div class="stats-detail-small"><strong>Esito</strong><br>${escapeHtml(etichettaEsito(r.esito))}</div></div>`;}).join(''):'<div class="stats-detail-empty">Nessuna prestazione con i filtri selezionati.</div>';
 }
+async function mostraDettaglioStats(titolo,tipo,esito){
+ if(!statisticheCalcolate){mostraErroreStats('Calcola prima le statistiche del periodo.');return;}
+ const da=dataDaIso(document.getElementById('stats-da').value),a=dataDaIso(document.getElementById('stats-a').value),overlay=document.getElementById('stats-detail-overlay'),title=document.getElementById('stats-detail-title'),meta=document.getElementById('stats-detail-meta'),list=document.getElementById('stats-detail-list');
+ title.textContent=titolo;meta.textContent='Caricamento dettaglio…';list.innerHTML='<div class="stats-detail-empty">Lettura indice…</div>';overlay.classList.add('show');
+ try{const d=await fetchDettaglioStatisticheFast(da,a,ultimiFiltriStatistiche,tipo,esito);meta.textContent=`${d.righe.length} ${d.righe.length===1?'prestazione':'prestazioni'} — ${document.getElementById('stats-period-label').textContent}`;list.innerHTML=renderRigheDettaglioStats(d.righe);}catch(e){meta.textContent='Dettaglio non disponibile';list.innerHTML='<div class="stats-detail-empty">Impossibile caricare il dettaglio.</div>';}
+}
+
 function chiudiPannelliStats(){document.querySelectorAll('.stats-extra-panel').forEach(x=>x.classList.remove('show'));document.querySelectorAll('.stats-tool-btn').forEach(x=>x.classList.remove('active'));}
 function toggleStatsPanel(nome,btn){
  if(!statisticheCalcolate){mostraErroreStats('Calcola prima le statistiche del periodo.');return;}
@@ -1195,179 +1123,65 @@ function toggleStatsPanel(nome,btn){
  if(nome==='terapisti')renderStatsTerapisti();else if(nome==='economico')renderStatsEconomico();else if(nome==='confronto')caricaConfrontoStats();
 }
 function renderStatsTerapisti(){
- const box=document.getElementById('stats-panel-terapisti');if(!box)return;
- const map=new Map();
- ultimeRigheStatistiche.forEach(r=>{const a=r.assegnazione||{};[...new Set([a.terapista,a.terapista2].filter(Boolean))].forEach(t=>{if(!map.has(t))map.set(t,{p:0,e:0});const x=map.get(t);x.p++;if(r.esito==='ESEGUITA')x.e++;});});
- const righe=[...map.entries()].sort((a,b)=>b[1].p-a[1].p||a[0].localeCompare(b[0],'it'));
- box.innerHTML='<div class="stats-extra-title">Carico per terapista</div>'+(!righe.length?'<div class="stats-detail-empty">Nessun terapista assegnato nel periodo filtrato.</div>':`<table class="stats-table"><thead><tr><th>Terapista</th><th class="num">Programmate</th><th class="num">Eseguite</th><th class="num">% eseguite</th></tr></thead><tbody>${righe.map(([t,x])=>`<tr class="stats-row-click" onclick="mostraDettaglioTerapista('${String(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"><td><strong>${escapeHtml(t)}</strong></td><td class="num">${x.p}</td><td class="num">${x.e}</td><td class="num">${x.p?(x.e*100/x.p).toFixed(1).replace('.',','):'0'}%</td></tr>`).join('')}</tbody></table><div class="stats-note">Una prestazione con T1 e T2 viene conteggiata nel carico di entrambi i terapisti.</div>`);
+ const box=document.getElementById('stats-panel-terapisti');if(!box)return;const righe=(ultimeStatisticheSummary&&ultimeStatisticheSummary.terapisti)||[];
+ box.innerHTML='<div class="stats-extra-title">Carico per terapista</div>'+(!righe.length?'<div class="stats-detail-empty">Nessun terapista assegnato nel periodo filtrato.</div>':`<table class="stats-table"><thead><tr><th>Terapista</th><th class="num">Programmate</th><th class="num">Eseguite</th><th class="num">% eseguite</th></tr></thead><tbody>${righe.map(x=>`<tr class="stats-row-click" onclick="mostraDettaglioTerapista('${String(x.nome).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"><td><strong>${escapeHtml(x.nome)}</strong></td><td class="num">${x.programmate}</td><td class="num">${x.eseguite}</td><td class="num">${x.programmate?(x.eseguite*100/x.programmate).toFixed(1).replace('.',','):'0'}%</td></tr>`).join('')}</tbody></table><div class="stats-note">Una prestazione con T1 e T2 viene conteggiata nel carico di entrambi i terapisti.</div>`);
 }
-function mostraDettaglioTerapista(nome){
- if(!statisticheCalcolate)return;const original=ultimeRigheStatistiche;const righe=original.filter(r=>{const a=r.assegnazione||{};return a.terapista===nome||a.terapista2===nome;});
- const title=document.getElementById('stats-detail-title'),meta=document.getElementById('stats-detail-meta'),list=document.getElementById('stats-detail-list'),overlay=document.getElementById('stats-detail-overlay');
- title.textContent='Prestazioni — '+nome;meta.textContent=`${righe.length} prestazioni — ${document.getElementById('stats-period-label').textContent}`;
- list.innerHTML=righe.length?righe.slice().sort((a,b)=>chiaveOrdineDataStats(a.data).localeCompare(chiaveOrdineDataStats(b.data))).map(r=>{const a=r.assegnazione||{};return `<div class="stats-detail-row"><div class="stats-detail-patient">${escapeHtml(r.paziente)}</div><div class="stats-detail-small"><strong>${escapeHtml(r.data)}</strong><br>${escapeHtml(r.fascia)}</div><div class="stats-detail-small"><strong>${escapeHtml(r.sede)}</strong><br>${escapeHtml(a.prestazione||'Non specificata')}</div><div class="stats-detail-small"><strong>Prezzo</strong><br>${String(a.prezzo??'').trim()?escapeHtml('€ '+a.prezzo):'—'}</div><div class="stats-detail-small"><strong>Esito</strong><br>${escapeHtml(etichettaEsito(r.esito))}</div></div>`;}).join(''):'<div class="stats-detail-empty">Nessuna prestazione.</div>';overlay.classList.add('show');
+async function mostraDettaglioTerapista(nome){
+ if(!statisticheCalcolate)return;const da=dataDaIso(document.getElementById('stats-da').value),a=dataDaIso(document.getElementById('stats-a').value),title=document.getElementById('stats-detail-title'),meta=document.getElementById('stats-detail-meta'),list=document.getElementById('stats-detail-list'),overlay=document.getElementById('stats-detail-overlay');
+ title.textContent='Prestazioni — '+nome;meta.textContent='Caricamento dettaglio…';list.innerHTML='<div class="stats-detail-empty">Lettura indice…</div>';overlay.classList.add('show');
+ try{const d=await fetchDettaglioStatisticheFast(da,a,ultimiFiltriStatistiche,'ALL','ALL',nome);meta.textContent=`${d.righe.length} prestazioni — ${document.getElementById('stats-period-label').textContent}`;list.innerHTML=renderRigheDettaglioStats(d.righe);}catch(e){meta.textContent='Dettaglio non disponibile';list.innerHTML='<div class="stats-detail-empty">Impossibile caricare il dettaglio.</div>';}
 }
-function aggregaEconomico(righe){
- const out={totale:{valore:0,incasso:0},studio:new Map(),tipo:new Map(),terapista:new Map(),senzaPrezzo:0};
- function add(map,k,val,inc){if(!map.has(k))map.set(k,{valore:0,incasso:0});const x=map.get(k);x.valore+=val;x.incasso+=inc;}
- righe.forEach(r=>{const a=r.assegnazione||{},raw=String(a.prezzo??'').trim(),p=parsePrezzoStats(a.prezzo),inc=r.esito==='ESEGUITA'?p:0;if(!raw)out.senzaPrezzo++;out.totale.valore+=p;out.totale.incasso+=inc;add(out.studio,r.sede||'—',p,inc);add(out.tipo,etichettaCategoria(categoriaPrestazione(a.prestazione)),p,inc);const ts=[...new Set([a.terapista,a.terapista2].filter(Boolean))];if(ts.length){ts.forEach(t=>add(out.terapista,t,p/ts.length,inc/ts.length));}else add(out.terapista,'Non assegnato',p,inc);});return out;
-}
-function etichettaCategoria(c){return {TERAPIA:'Terapie',CONSULENZA:'Consulenze',BARO:'Esami baropodometrici',COMBO:'Consulenza + Esame baro',NON_SPECIFICATA:'Non specificate'}[c]||c;}
-function tabellaEconomica(map,label){const rows=[...map.entries()].sort((a,b)=>b[1].incasso-a[1].incasso);return `<div class="stats-extra-title">${label}</div><table class="stats-table"><thead><tr><th>Voce</th><th class="num">Valore programmato</th><th class="num">Eseguito / incasso</th></tr></thead><tbody>${rows.map(([k,x])=>`<tr><td><strong>${escapeHtml(k)}</strong></td><td class="num">${euroStats(x.valore)}</td><td class="num">${euroStats(x.incasso)}</td></tr>`).join('')}</tbody></table>`;}
+function tabellaEconomicaFast(rows,label){return `<div class="stats-extra-title">${label}</div><table class="stats-table"><thead><tr><th>Voce</th><th class="num">Valore programmato</th><th class="num">Eseguito / incasso</th></tr></thead><tbody>${(rows||[]).map(x=>`<tr><td><strong>${escapeHtml(x.nome)}</strong></td><td class="num">${euroStats(x.valore)}</td><td class="num">${euroStats(x.incasso)}</td></tr>`).join('')}</tbody></table>`;}
 function renderStatsEconomico(){
- const box=document.getElementById('stats-panel-economico');if(!box)return;const e=aggregaEconomico(ultimeRigheStatistiche);
- box.innerHTML=`<div class="stats-kpi-row"><div class="stats-mini-card"><div class="stats-mini-label">Valore programmato</div><div class="stats-mini-value">${euroStats(e.totale.valore)}</div></div><div class="stats-mini-card"><div class="stats-mini-label">Prestazioni eseguite / incasso</div><div class="stats-mini-value">${euroStats(e.totale.incasso)}</div></div><div class="stats-mini-card"><div class="stats-mini-label">Senza prezzo</div><div class="stats-mini-value">${e.senzaPrezzo}</div></div></div>${tabellaEconomica(e.studio,'Per studio')}${tabellaEconomica(e.tipo,'Per tipologia')}${tabellaEconomica(e.terapista,'Per terapista')}<div class="stats-note">Per riconciliare i totali, quando una prestazione ha T1 e T2 l’importo viene ripartito in parti uguali fra i due terapisti. Gli importi “incasso” considerano soltanto le prestazioni con esito Eseguita.</div>`;
+ const box=document.getElementById('stats-panel-economico');if(!box)return;const e=(ultimeStatisticheSummary&&ultimeStatisticheSummary.economico)||{totale:{valore:0,incasso:0},senzaPrezzo:0,studio:[],tipo:[],terapista:[]};
+ box.innerHTML=`<div class="stats-kpi-row"><div class="stats-mini-card"><div class="stats-mini-label">Valore programmato</div><div class="stats-mini-value">${euroStats(e.totale.valore)}</div></div><div class="stats-mini-card"><div class="stats-mini-label">Prestazioni eseguite / incasso</div><div class="stats-mini-value">${euroStats(e.totale.incasso)}</div></div><div class="stats-mini-card"><div class="stats-mini-label">Senza prezzo</div><div class="stats-mini-value">${e.senzaPrezzo||0}</div></div></div>${tabellaEconomicaFast(e.studio,'Per studio')}${tabellaEconomicaFast(e.tipo,'Per tipologia')}${tabellaEconomicaFast(e.terapista,'Per terapista')}<div class="stats-note">Con T1 e T2 l’importo viene ripartito in parti uguali fra i due terapisti. Gli importi “incasso” considerano soltanto le prestazioni con esito Eseguita.</div>`;
 }
-function periodoInteroMese(da,a){
- return !!(da&&a&&da.getFullYear()===a.getFullYear()&&da.getMonth()===a.getMonth()&&da.getDate()===1&&a.getDate()===new Date(a.getFullYear(),a.getMonth()+1,0,12).getDate());
-}
-function nomeMeseAnno(d){
- const s=new Intl.DateTimeFormat('it-IT',{month:'long',year:'numeric'}).format(d);
- return s.charAt(0).toUpperCase()+s.slice(1);
-}
-function nomeBrevePeriodo(da,a){
- if(periodoInteroMese(da,a)) return nomeMeseAnno(da);
- return `${formatDateIT(da)} – ${formatDateIT(a)}`;
-}
+function periodoInteroMese(da,a){return !!(da&&a&&da.getFullYear()===a.getFullYear()&&da.getMonth()===a.getMonth()&&da.getDate()===1&&a.getDate()===new Date(a.getFullYear(),a.getMonth()+1,0,12).getDate());}
+function nomeMeseAnno(d){const s=new Intl.DateTimeFormat('it-IT',{month:'long',year:'numeric'}).format(d);return s.charAt(0).toUpperCase()+s.slice(1);}
+function nomeBrevePeriodo(da,a){if(periodoInteroMese(da,a))return nomeMeseAnno(da);return `${formatDateIT(da)} – ${formatDateIT(a)}`;}
 function periodoConfrontoPrecedente(da,a){
- // Se il periodo selezionato è un mese solare completo, il confronto è SEMPRE
- // con il mese solare precedente: dal giorno 1 all'ultimo giorno del mese.
- if(periodoInteroMese(da,a)){
-  const prevDa=new Date(da.getFullYear(),da.getMonth()-1,1,12);
-  const prevA=new Date(da.getFullYear(),da.getMonth(),0,12);
-  return {da:prevDa,a:prevA,mensile:true};
- }
- // Settimane e periodi personalizzati restano confrontati con un intervallo
- // immediatamente precedente della stessa durata.
- const giorni=listaDate(da,a).length;
- const prevA=new Date(da); prevA.setDate(prevA.getDate()-1);
- const prevDa=new Date(prevA); prevDa.setDate(prevDa.getDate()-giorni+1);
- return {da:prevDa,a:prevA,mensile:false};
+ if(periodoInteroMese(da,a)){const prevDa=new Date(da.getFullYear(),da.getMonth()-1,1,12),prevA=new Date(da.getFullYear(),da.getMonth(),0,12);return{da:prevDa,a:prevA,mensile:true};}
+ const giorni=listaDate(da,a).length,prevA=new Date(da);prevA.setDate(prevA.getDate()-1);const prevDa=new Date(prevA);prevDa.setDate(prevDa.getDate()-giorni+1);return{da:prevDa,a:prevA,mensile:false};
 }
-function deltaConfronto(cur,prev,isMoney){
- const diff=cur-prev;
- if(diff===0) return {txt:'Nessuna variazione',cls:'flat'};
- if(prev===0){
-  const valore=isMoney?euroStats(Math.abs(diff)):Math.abs(diff);
-  return {txt:(diff>0?'▲ +':'▼ −')+valore,cls:diff>0?'up':'down'};
- }
- const pct=diff*100/Math.abs(prev);
- return {txt:(pct>0?'▲ +':'▼ ')+pct.toFixed(1).replace('.',',')+'%',cls:pct>0?'up':'down'};
-}
+function deltaConfronto(cur,prev,isMoney){const diff=cur-prev;if(diff===0)return{txt:'Nessuna variazione',cls:'flat'};if(prev===0){const valore=isMoney?euroStats(Math.abs(diff)):Math.abs(diff);return{txt:(diff>0?'▲ +':'▼ −')+valore,cls:diff>0?'up':'down'};}const pct=diff*100/Math.abs(prev);return{txt:(pct>0?'▲ +':'▼ ')+pct.toFixed(1).replace('.',',')+'%',cls:pct>0?'up':'down'};}
 async function caricaConfrontoStats(){
- const box=document.getElementById('stats-panel-confronto');
- if(!box||!statisticheCalcolate)return;
- const da=dataDaIso(document.getElementById('stats-da').value),a=dataDaIso(document.getElementById('stats-a').value);
- if(!da||!a)return;
- const confronto=periodoConfrontoPrecedente(da,a),prevDa=confronto.da,prevA=confronto.a;
- box.innerHTML='<div class="stats-detail-empty">Caricamento confronto…</div>';
- const filtri={studio:document.getElementById('stats-studio').value,paziente:document.getElementById('stats-paziente').value.trim(),terapista:document.getElementById('stats-terapista').value,trattamento:document.getElementById('stats-trattamento').value};
+ const box=document.getElementById('stats-panel-confronto');if(!box||!statisticheCalcolate)return;const da=dataDaIso(document.getElementById('stats-da').value),a=dataDaIso(document.getElementById('stats-a').value);if(!da||!a)return;const confronto=periodoConfrontoPrecedente(da,a),prevDa=confronto.da,prevA=confronto.a;box.innerHTML='<div class="stats-detail-empty">Caricamento confronto…</div>';
  try{
-  const pac=await fetchStatistichePeriodo(prevDa,prevA),prev=[];
-  pac.giorni.forEach(g=>prev.push(...righeStatisticheDaGiorno(g,filtri)));
-  const curM=metricheRigheStats(ultimeRigheStatistiche),preM=metricheRigheStats(prev);
-  const defs=[['Prestazioni',curM.programmate,preM.programmate,false,false],['Eseguite',curM.eseguite,preM.eseguite,false,false],['Terapie',curM.terapie,preM.terapie,false,false],['Assenti',curM.assenti,preM.assenti,false,true],['Incasso',curM.incasso,preM.incasso,true,false]];
-  const nomeCorrente=nomeBrevePeriodo(da,a),nomePrecedente=nomeBrevePeriodo(prevDa,prevA);
-  box.innerHTML=`<div class="compare-periods">
-   <div class="compare-period">
-    <div class="compare-period-kicker">Periodo di confronto</div>
-    <div class="compare-period-name">${escapeHtml(nomePrecedente)}</div>
-    <div class="compare-period-dates">${formatDateIT(prevDa)} – ${formatDateIT(prevA)}</div>
-   </div>
-   <div class="compare-vs">VS</div>
-   <div class="compare-period previous">
-    <div class="compare-period-kicker">Periodo selezionato</div>
-    <div class="compare-period-name">${escapeHtml(nomeCorrente)}</div>
-    <div class="compare-period-dates">${formatDateIT(da)} – ${formatDateIT(a)}</div>
-   </div>
-  </div>
-  <div class="compare-grid">${defs.map(([lab,c,p,money,reverse])=>{
-   const d=deltaConfronto(c,p,money);
-   if(reverse&&d.cls==='up')d.cls='down';else if(reverse&&d.cls==='down')d.cls='up';
-   return `<div class="compare-card">
-    <div class="compare-label">${lab}</div>
-    <div class="compare-values">
-     <div class="compare-value"><span class="compare-month">${escapeHtml(nomePrecedente)}</span><strong class="compare-number">${money?euroStats(p):p}</strong></div>
-     <div class="compare-arrow">→</div>
-     <div class="compare-value"><span class="compare-month">${escapeHtml(nomeCorrente)}</span><strong class="compare-number">${money?euroStats(c):c}</strong></div>
-    </div>
-    <div class="compare-delta ${d.cls}">${d.txt}</div>
-   </div>`;
-  }).join('')}</div>
-  <div class="stats-note">${confronto.mensile?'Il confronto mensile usa sempre mesi solari completi, dal giorno 1 all’ultimo giorno del mese.':'Il periodo selezionato è confrontato con l’intervallo immediatamente precedente della stessa durata.'}</div>`;
- }catch(e){
-  box.innerHTML='<div class="stats-detail-empty">Confronto non disponibile. Riprova.</div>';
- }
+  const pac=await fetchStatisticheFast(prevDa,prevA,ultimiFiltriStatistiche),curM=ultimeStatisticheSummary.metriche,preM=pac.summary.metriche;
+  const defs=[['Prestazioni',curM.programmate,preM.programmate,false,false],['Eseguite',curM.eseguite,preM.eseguite,false,false],['Terapie',curM.terapie,preM.terapie,false,false],['Assenti',curM.assenti,preM.assenti,false,true],['Incasso',curM.incasso,preM.incasso,true,false]],nomeCorrente=nomeBrevePeriodo(da,a),nomePrecedente=nomeBrevePeriodo(prevDa,prevA);
+  box.innerHTML=`<div class="compare-periods"><div class="compare-period"><div class="compare-period-kicker">Periodo di confronto</div><div class="compare-period-name">${escapeHtml(nomePrecedente)}</div><div class="compare-period-dates">${formatDateIT(prevDa)} – ${formatDateIT(prevA)}</div></div><div class="compare-vs">VS</div><div class="compare-period previous"><div class="compare-period-kicker">Periodo selezionato</div><div class="compare-period-name">${escapeHtml(nomeCorrente)}</div><div class="compare-period-dates">${formatDateIT(da)} – ${formatDateIT(a)}</div></div></div><div class="compare-grid">${defs.map(([lab,c,p,money,reverse])=>{const d=deltaConfronto(c,p,money);if(reverse&&d.cls==='up')d.cls='down';else if(reverse&&d.cls==='down')d.cls='up';return `<div class="compare-card"><div class="compare-label">${lab}</div><div class="compare-values"><div class="compare-value"><span class="compare-month">${escapeHtml(nomePrecedente)}</span><strong class="compare-number">${money?euroStats(p):p}</strong></div><div class="compare-arrow">→</div><div class="compare-value"><span class="compare-month">${escapeHtml(nomeCorrente)}</span><strong class="compare-number">${money?euroStats(c):c}</strong></div></div><div class="compare-delta ${d.cls}">${d.txt}</div></div>`;}).join('')}</div><div class="stats-note">${confronto.mensile?'Il confronto mensile usa sempre mesi solari completi.':'Il periodo selezionato è confrontato con l’intervallo immediatamente precedente della stessa durata.'}</div>`;
+ }catch(e){box.innerHTML='<div class="stats-detail-empty">Confronto non disponibile per il periodo richiesto.</div>';}
 }
 function csvCell(v){const s=String(v??'');return '"'+s.replace(/"/g,'""')+'"';}
-function esportaStatisticheCSV(){
- if(!statisticheCalcolate){mostraErroreStats('Calcola prima le statistiche del periodo.');return;}const head=['Data','Studio','Fascia','Paziente','Prestazione','Terapista 1','Terapista 2','Prezzo','Esito'];const lines=[head.map(csvCell).join(';')];ultimeRigheStatistiche.forEach(r=>{const a=r.assegnazione||{};lines.push([r.data,r.sede,r.fascia,r.paziente,a.prestazione||'',a.terapista||'',a.terapista2||'',a.prezzo||'',etichettaEsito(r.esito)].map(csvCell).join(';'));});const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='PosturalLAB_statistiche_'+document.getElementById('stats-da').value+'_'+document.getElementById('stats-a').value+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+async function caricaTutteRigheStatsPerExport(){const da=dataDaIso(document.getElementById('stats-da').value),a=dataDaIso(document.getElementById('stats-a').value);return (await fetchDettaglioStatisticheFast(da,a,ultimiFiltriStatistiche,'ALL','ALL',null,60000)).righe;}
+async function esportaStatisticheCSV(){
+ if(!statisticheCalcolate){mostraErroreStats('Calcola prima le statistiche del periodo.');return;}const prog=document.getElementById('stats-progress');prog.textContent='Preparo CSV…';
+ try{const righe=await caricaTutteRigheStatsPerExport(),head=['Data','Studio','Fascia','Paziente','Prestazione','Terapista 1','Terapista 2','Prezzo','Esito'],lines=[head.map(csvCell).join(';')];righe.forEach(r=>{const a=r.assegnazione||{};lines.push([r.data,r.sede,r.fascia,r.paziente,a.prestazione||'',a.terapista||'',a.terapista2||'',a.prezzo||'',etichettaEsito(r.esito)].map(csvCell).join(';'));});const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),lnk=document.createElement('a');lnk.href=url;lnk.download='PosturalLAB_statistiche_'+document.getElementById('stats-da').value+'_'+document.getElementById('stats-a').value+'.csv';document.body.appendChild(lnk);lnk.click();lnk.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){mostraErroreStats('Esportazione non disponibile.');}finally{prog.textContent='';}
 }
-function stampaReportStatistiche(){
- if(!statisticheCalcolate){mostraErroreStats('Calcola prima le statistiche del periodo.');return;}const m=metricheRigheStats(ultimeRigheStatistiche),econ=aggregaEconomico(ultimeRigheStatistiche),periodo=document.getElementById('stats-period-label').textContent;const righe=ultimeRigheStatistiche.slice().sort((a,b)=>chiaveOrdineDataStats(a.data).localeCompare(chiaveOrdineDataStats(b.data))||(a.fascia||'').localeCompare(b.fascia||''));const html=`<!doctype html><html><head><meta charset="utf-8"><title>PosturalLAB - Report</title><style>body{font-family:Arial,sans-serif;color:#222;padding:24px}h1{color:#1F3864;font-size:22px}h2{font-size:15px;color:#1F3864;margin-top:22px}.k{display:flex;gap:12px;flex-wrap:wrap}.c{border:1px solid #ccd6e0;border-radius:8px;padding:10px;min-width:130px}.v{font-size:22px;font-weight:800;color:#1F3864}table{width:100%;border-collapse:collapse;font-size:11px;margin-top:10px}th,td{border-bottom:1px solid #ddd;padding:6px;text-align:left}th{background:#f3f5f7}@media print{body{padding:0}}</style></head><body><h1>PosturalLAB — Report statistiche</h1><p>${escapeHtml(periodo)}</p><div class="k"><div class="c">Programmate<div class="v">${m.programmate}</div></div><div class="c">Eseguite<div class="v">${m.eseguite}</div></div><div class="c">Assenti<div class="v">${m.assenti}</div></div><div class="c">Incasso eseguito<div class="v">${euroStats(econ.totale.incasso)}</div></div></div><h2>Dettaglio prestazioni</h2><table><thead><tr><th>Data</th><th>Studio</th><th>Fascia</th><th>Paziente</th><th>Prestazione</th><th>Terapista</th><th>Prezzo</th><th>Esito</th></tr></thead><tbody>${righe.map(r=>{const a=r.assegnazione||{},t=[a.terapista,a.terapista2].filter(Boolean).join(' + ');return `<tr><td>${escapeHtml(r.data)}</td><td>${escapeHtml(r.sede)}</td><td>${escapeHtml(r.fascia)}</td><td>${escapeHtml(r.paziente)}</td><td>${escapeHtml(a.prestazione||'')}</td><td>${escapeHtml(t)}</td><td>${escapeHtml(String(a.prezzo||''))}</td><td>${escapeHtml(etichettaEsito(r.esito))}</td></tr>`;}).join('')}</tbody></table></body></html>`;const w=window.open('','_blank');if(!w){mostraErroreStats('Il browser ha bloccato la finestra di stampa. Consenti i popup e riprova.');return;}w.document.open();w.document.write(html);w.document.close();setTimeout(()=>{w.focus();w.print();},250);
+async function stampaReportStatistiche(){
+ if(!statisticheCalcolate){mostraErroreStats('Calcola prima le statistiche del periodo.');return;}const prog=document.getElementById('stats-progress');prog.textContent='Preparo report…';
+ try{const righe=await caricaTutteRigheStatsPerExport(),m=ultimeStatisticheSummary.metriche,econ=ultimeStatisticheSummary.economico,periodo=document.getElementById('stats-period-label').textContent,html=`<!doctype html><html><head><meta charset="utf-8"><title>PosturalLAB - Report</title><style>body{font-family:Arial,sans-serif;color:#222;padding:24px}h1{color:#1F3864;font-size:22px}h2{font-size:15px;color:#1F3864;margin-top:22px}.k{display:flex;gap:12px;flex-wrap:wrap}.c{border:1px solid #ccd6e0;border-radius:8px;padding:10px;min-width:130px}.v{font-size:22px;font-weight:800;color:#1F3864}table{width:100%;border-collapse:collapse;font-size:11px;margin-top:10px}th,td{border-bottom:1px solid #ddd;padding:6px;text-align:left}th{background:#f3f5f7}@media print{body{padding:0}}</style></head><body><h1>PosturalLAB — Report statistiche</h1><p>${escapeHtml(periodo)}</p><div class="k"><div class="c">Programmate<div class="v">${m.programmate}</div></div><div class="c">Eseguite<div class="v">${m.eseguite}</div></div><div class="c">Assenti<div class="v">${m.assenti}</div></div><div class="c">Incasso eseguito<div class="v">${euroStats(econ.totale.incasso)}</div></div></div><h2>Dettaglio prestazioni</h2><table><thead><tr><th>Data</th><th>Studio</th><th>Fascia</th><th>Paziente</th><th>Prestazione</th><th>Terapista</th><th>Prezzo</th><th>Esito</th></tr></thead><tbody>${righe.map(r=>{const a=r.assegnazione||{},t=[a.terapista,a.terapista2].filter(Boolean).join(' + ');return `<tr><td>${escapeHtml(r.data)}</td><td>${escapeHtml(r.sede)}</td><td>${escapeHtml(r.fascia)}</td><td>${escapeHtml(r.paziente)}</td><td>${escapeHtml(a.prestazione||'')}</td><td>${escapeHtml(t)}</td><td>${escapeHtml(String(a.prezzo||''))}</td><td>${escapeHtml(etichettaEsito(r.esito))}</td></tr>`;}).join('')}</tbody></table></body></html>`;const w=window.open('','_blank');if(!w){mostraErroreStats('Il browser ha bloccato la finestra di stampa.');return;}w.document.open();w.document.write(html);w.document.close();setTimeout(()=>{w.focus();w.print();},250);}catch(e){mostraErroreStats('Report non disponibile.');}finally{prog.textContent='';}
 }
 
 function resetStatistiche(){
- ultimeRigheStatistiche=[]; statisticheCalcolate=false; chiudiDettaglioStats(); chiudiPannelliStats();
- ['programmate','eseguite','assenti','annullate','spostate','nonconcluse','confermare','percentuale'].forEach(k=>{ const e=document.getElementById('stat-'+k); if(e)e.textContent='—'; });
- ['terapie-programmate','terapie-eseguite','consulenze-programmate','consulenze-eseguite','baro-programmate','baro-eseguite','combo-programmate','combo-eseguite','nonspec-programmate','nonspec-eseguite'].forEach(k=>{ const e=document.getElementById('stat-'+k); if(e)e.textContent='—'; });
+ statisticheCalcolate=false;ultimeStatisticheSummary=null;ultimeStatisticheIndice=null;ultimiFiltriStatistiche=null;chiudiDettaglioStats();chiudiPannelliStats();
+ ['programmate','eseguite','assenti','annullate','spostate','nonconcluse','confermare','percentuale'].forEach(k=>{const e=document.getElementById('stat-'+k);if(e)e.textContent='—';});
+ ['terapie-programmate','terapie-eseguite','consulenze-programmate','consulenze-eseguite','baro-programmate','baro-eseguite','combo-programmate','combo-eseguite','nonspec-programmate','nonspec-eseguite'].forEach(k=>{const e=document.getElementById('stat-'+k);if(e)e.textContent='—';});
 }
-function mostraErroreStats(msg){ const e=document.getElementById('stats-error'); e.textContent=msg; e.style.display='block'; }
-function nascondiErroreStats(){ const e=document.getElementById('stats-error'); e.textContent=''; e.style.display='none'; }
+function mostraErroreStats(msg){const e=document.getElementById('stats-error');e.textContent=msg;e.style.display='block';}
+function nascondiErroreStats(){const e=document.getElementById('stats-error');e.textContent='';e.style.display='none';}
+function renderSummaryStatistiche(summary){
+ const c=summary.conteggi||{},tipi=summary.tipi||{};
+ document.getElementById('stat-programmate').textContent=c.programmate||0;document.getElementById('stat-eseguite').textContent=c.ESEGUITA||0;document.getElementById('stat-assenti').textContent=c.ASSENTE||0;document.getElementById('stat-annullate').textContent=c.ANNULLATA||0;document.getElementById('stat-spostate').textContent=c.SPOSTATA||0;document.getElementById('stat-nonconcluse').textContent=c.NON_CONCLUSA||0;document.getElementById('stat-confermare').textContent=c.DA_CONFERMARE||0;document.getElementById('stat-percentuale').textContent=(c.programmate?((c.ESEGUITA||0)*100/c.programmate).toFixed(1).replace('.',','):'0')+'%';
+ const g=k=>tipi[k]||{programmate:0,eseguite:0};document.getElementById('stat-terapie-programmate').textContent=g('TERAPIA').programmate;document.getElementById('stat-terapie-eseguite').textContent=g('TERAPIA').eseguite;document.getElementById('stat-consulenze-programmate').textContent=g('CONSULENZA').programmate;document.getElementById('stat-consulenze-eseguite').textContent=g('CONSULENZA').eseguite;document.getElementById('stat-baro-programmate').textContent=g('BARO').programmate;document.getElementById('stat-baro-eseguite').textContent=g('BARO').eseguite;document.getElementById('stat-combo-programmate').textContent=g('COMBO').programmate;document.getElementById('stat-combo-eseguite').textContent=g('COMBO').eseguite;document.getElementById('stat-nonspec-programmate').textContent=g('NON_SPECIFICATA').programmate;document.getElementById('stat-nonspec-eseguite').textContent=g('NON_SPECIFICATA').eseguite;
+}
 async function calcolaStatistiche(){
- nascondiErroreStats(); resetStatistiche(); aggiornaEtichettaPeriodoStats();
- const da=dataDaIso(document.getElementById('stats-da').value),a=dataDaIso(document.getElementById('stats-a').value);
- if(!da||!a){ mostraErroreStats('Seleziona una data iniziale e una data finale.'); return; }
- if(a<da){ mostraErroreStats('La data finale non può precedere quella iniziale.'); return; }
- const dates=listaDate(da,a);
- if(dates.length>366){ mostraErroreStats('Per evitare un carico eccessivo, seleziona un periodo massimo di 366 giorni.'); return; }
- const filtri={studio:document.getElementById('stats-studio').value,paziente:document.getElementById('stats-paziente').value.trim(),terapista:document.getElementById('stats-terapista').value,trattamento:document.getElementById('stats-trattamento').value};
- const btn=document.getElementById('stats-go'),prog=document.getElementById('stats-progress'); btn.disabled=true;
- const tutte=[];
+ nascondiErroreStats();resetStatistiche();aggiornaEtichettaPeriodoStats();const da=dataDaIso(document.getElementById('stats-da').value),a=dataDaIso(document.getElementById('stats-a').value);if(!da||!a){mostraErroreStats('Seleziona una data iniziale e una data finale.');return;}if(a<da){mostraErroreStats('La data finale non può precedere quella iniziale.');return;}
+ const filtri=filtriStatisticheCorrenti(),btn=document.getElementById('stats-go'),prog=document.getElementById('stats-progress');btn.disabled=true;prog.textContent='Lettura indice…';const t0=performance.now();
  try{
-  // Per periodi superiori a 14 giorni partiamo direttamente a blocchi:
-  // niente attesa iniziale di un range mensile che può andare in timeout.
-  const pacchetto=await fetchStatistichePeriodo(da,a,msg=>{prog.textContent=msg;});
-  prog.textContent='Elaborazione '+pacchetto.giorni.length+' giorni…';
-  pacchetto.giorni.forEach(g=>tutte.push(...righeStatisticheDaGiorno(g,filtri)));
- }catch(e){
-  btn.disabled=false;prog.textContent='';
-  mostraErroreStats('Statistiche non completate: uno o più blocchi non sono stati letti. Nessun dato parziale viene mostrato. Riprova.');
-  return;
- }
- btn.disabled=false; prog.textContent='';
- tutte.sort((x,y)=>chiaveOrdineDataStats(x.data).localeCompare(chiaveOrdineDataStats(y.data))||(x.fascia||'').localeCompare(y.fascia||''));
- ultimeRigheStatistiche=tutte.slice(); statisticheCalcolate=true;
- const c={programmate:tutte.length,ESEGUITA:0,ASSENTE:0,ANNULLATA:0,SPOSTATA:0,NON_CONCLUSA:0,DA_CONFERMARE:0};
- const tipi={
-  TERAPIA:{programmate:0,eseguite:0},CONSULENZA:{programmate:0,eseguite:0},
-  BARO:{programmate:0,eseguite:0},COMBO:{programmate:0,eseguite:0},
-  NON_SPECIFICATA:{programmate:0,eseguite:0}
- };
- tutte.forEach(r=>{
-  if(c[r.esito]!==undefined)c[r.esito]++; else c.DA_CONFERMARE++;
-  const tipo=categoriaPrestazione((r.assegnazione||{}).prestazione);
-  tipi[tipo].programmate++;
-  if(r.esito==='ESEGUITA') tipi[tipo].eseguite++;
- });
- document.getElementById('stat-programmate').textContent=c.programmate;
- document.getElementById('stat-eseguite').textContent=c.ESEGUITA;
- document.getElementById('stat-assenti').textContent=c.ASSENTE;
- document.getElementById('stat-annullate').textContent=c.ANNULLATA;
- document.getElementById('stat-spostate').textContent=c.SPOSTATA;
- document.getElementById('stat-nonconcluse').textContent=c.NON_CONCLUSA;
- document.getElementById('stat-confermare').textContent=c.DA_CONFERMARE;
- document.getElementById('stat-percentuale').textContent=c.programmate?`${(c.ESEGUITA*100/c.programmate).toFixed(1).replace('.',',')}%`:'0%';
- document.getElementById('stat-terapie-programmate').textContent=tipi.TERAPIA.programmate;
- document.getElementById('stat-terapie-eseguite').textContent=tipi.TERAPIA.eseguite;
- document.getElementById('stat-consulenze-programmate').textContent=tipi.CONSULENZA.programmate;
- document.getElementById('stat-consulenze-eseguite').textContent=tipi.CONSULENZA.eseguite;
- document.getElementById('stat-baro-programmate').textContent=tipi.BARO.programmate;
- document.getElementById('stat-baro-eseguite').textContent=tipi.BARO.eseguite;
- document.getElementById('stat-combo-programmate').textContent=tipi.COMBO.programmate;
- document.getElementById('stat-combo-eseguite').textContent=tipi.COMBO.eseguite;
- document.getElementById('stat-nonspec-programmate').textContent=tipi.NON_SPECIFICATA.programmate;
- document.getElementById('stat-nonspec-eseguite').textContent=tipi.NON_SPECIFICATA.eseguite;
+  const data=await fetchStatisticheFast(da,a,filtri);ultimeStatisticheSummary=data.summary;ultimeStatisticheIndice=data.indice||null;ultimiFiltriStatistiche={...filtri};statisticheCalcolate=true;renderSummaryStatistiche(data.summary);const sec=((performance.now()-t0)/1000).toFixed(1).replace('.',',');prog.textContent='Caricato in '+sec+' s';setTimeout(()=>{if(prog.textContent.startsWith('Caricato in'))prog.textContent='';},3500);
+ }catch(e){prog.textContent='';if(['INDICE_NON_PRONTO','INTERVALLO_PRIMA_INDICE','INTERVALLO_DOPO_INDICE'].includes(e.code))mostraIndiceNonProntoStats(e.code);else mostraErroreStats('Statistiche non disponibili: '+(e.message||'errore di lettura')+'.');
+ }finally{btn.disabled=false;}
 }
 document.addEventListener('keydown',e=>{
  if(e.key==='Escape'){
