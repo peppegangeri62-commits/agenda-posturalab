@@ -151,7 +151,7 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
 .history-overlay.show{display:flex}
 .history-modal{width:min(760px,100%);max-height:min(86vh,780px);display:flex;flex-direction:column;background:#f7f9fc;border-radius:14px;overflow:hidden;box-shadow:0 18px 60px rgba(0,0,0,.3)}
 .history-controls{padding:10px 12px;background:#fff;border-bottom:1px solid #d5deea;display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
-.history-field{display:flex;flex-direction:column;gap:4px}.history-field label{font-size:10px;font-weight:800;color:#52606d;text-transform:uppercase}.history-field input{border:1px solid #ccd6e0;border-radius:7px;padding:7px 8px;font-size:12px}.history-search{border:0;background:#1F3864;color:#fff;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer}.history-presets{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}.history-scope{grid-column:1/-1;font-size:11px;color:#52606d;background:#eef3f9;border:1px solid #d5deea;border-radius:7px;padding:6px 8px;font-weight:700}.history-preset{border:1px solid #b7c4d2;background:#fff;color:#34495e;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer}.history-preset:hover{background:#e8f0fe}
+.history-field{display:flex;flex-direction:column;gap:4px}.history-field label{font-size:10px;font-weight:800;color:#52606d;text-transform:uppercase}.history-field input{border:1px solid #ccd6e0;border-radius:7px;padding:7px 8px;font-size:12px}.history-search{border:0;background:#1F3864;color:#fff;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer}.history-presets{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}.history-scope{grid-column:1/-1;font-size:11px;color:#52606d;background:#eef3f9;border:1px solid #d5deea;border-radius:7px;padding:6px 8px;font-weight:700}.history-preset{border:1px solid #b7c4d2;background:#fff;color:#34495e;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer}.history-preset:hover{background:#e8f0fe}.history-preset.history-all{border-color:#1F3864;color:#1F3864;font-weight:800}
 .history-list{padding:10px;overflow:auto;display:flex;flex-direction:column;gap:7px}
 .history-row{background:#fff;border:1px solid #dce3ed;border-radius:9px;padding:9px 10px;display:grid;grid-template-columns:92px 90px minmax(150px,1.3fr) minmax(120px,1fr);gap:8px;align-items:center}
 .history-row .h-main{font-weight:800;color:#1F3864}
@@ -373,14 +373,14 @@ body{font-family:Arial,sans-serif;background:#f0f4f8;color:#222;padding:12px}
  <div class="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-title">
   <div class="stats-detail-head"><h3 id="history-title">Storico paziente</h3><button class="stats-detail-close" onclick="chiudiStoricoPaziente()" aria-label="Chiudi">×</button></div>
   <div class="history-controls">
-   <div class="history-field"><label for="history-da">Dal</label><input type="date" id="history-da"></div>
-   <div class="history-field"><label for="history-a">Al</label><input type="date" id="history-a"></div>
+   <div class="history-field"><label for="history-da">Dal</label><input type="date" id="history-da" onchange="disattivaTuttoStorico()"></div>
+   <div class="history-field"><label for="history-a">Al</label><input type="date" id="history-a" onchange="disattivaTuttoStorico()"></div>
    <button class="history-search" id="history-search" onclick="caricaStoricoSelezionato()">Cerca</button>
-   <div class="history-presets"><button class="history-preset" onclick="impostaPeriodoStorico(3)">3 mesi</button><button class="history-preset" onclick="impostaPeriodoStorico(6)">6 mesi</button><button class="history-preset" onclick="impostaPeriodoStorico(12)">12 mesi</button><button class="history-preset" onclick="impostaPeriodoStorico(24)">24 mesi</button></div>
+   <div class="history-presets"><button class="history-preset" onclick="impostaPeriodoStorico(3)">3 mesi</button><button class="history-preset" onclick="impostaPeriodoStorico(6)">6 mesi</button><button class="history-preset" onclick="impostaPeriodoStorico(12)">12 mesi</button><button class="history-preset" onclick="impostaPeriodoStorico(24)">24 mesi</button><button class="history-preset history-all" onclick="impostaTuttoStorico()">Tutto lo storico</button></div>
    <div class="history-scope">📍 Storico completo: Studio Boccetta + Studio Trento · Nessun limite di prestazioni</div>
   </div>
-  <div class="stats-detail-meta" id="history-meta">Scegli il periodo</div>
-  <div class="history-list" id="history-list"><div class="stats-detail-empty">Seleziona il periodo da verificare.</div></div>
+  <div class="stats-detail-meta" id="history-meta">Scegli un periodo: lo storico non viene caricato automaticamente.</div>
+  <div class="history-list" id="history-list"><div class="stats-detail-empty">Seleziona 3, 6, 12, 24 mesi, Tutto lo storico oppure imposta Dal/Al e premi Cerca.</div></div>
  </div>
 </div>
 <div id="main"></div>
@@ -919,44 +919,66 @@ function chiudiStoricoDaSfondo(e){if(e.target&&e.target.id==='history-overlay')c
 function etichettaEsito(esito){
  const x=ESITI_VISITA.find(e=>e.value===(esito||'DA_CONFERMARE')); return x?x.label.replace('✓ ','').replace('✕ ','').replace('↪ ',''):'Da confermare';
 }
+let historyAllMode=false;
+function disattivaTuttoStorico(){historyAllMode=false;}
 function impostaPeriodoStorico(mesi){
+ historyAllMode=false;
  const a=new Date();a.setHours(12,0,0,0);const da=new Date(a);da.setMonth(da.getMonth()-mesi);
  document.getElementById('history-da').value=isoDate(da);document.getElementById('history-a').value=isoDate(a);
  caricaStoricoSelezionato();
 }
-function fetchStoricoPaziente(paziente,da,a){
- const key=normalizzaChiavePazienteClient(paziente)+'|'+da+'|'+a,cached=patientHistoryCache.get(key);
+function impostaTuttoStorico(){
+ historyAllMode=true;
+ const a=new Date();a.setHours(12,0,0,0);
+ document.getElementById('history-da').value='';document.getElementById('history-a').value=isoDate(a);
+ caricaStoricoSelezionato();
+}
+function fetchStoricoPaziente(paziente,da,a,tutto){
+ const key=normalizzaChiavePazienteClient(paziente)+'|'+(tutto?'ALL':da+'|'+a),cached=patientHistoryCache.get(key);
  if(cached&&Date.now()-cached.ts<HISTORY_CACHE_TTL)return Promise.resolve(cached.data);
- const url=SCRIPT_URL+'?action=patientHistory&paziente='+encodeURIComponent(paziente)+'&da='+encodeURIComponent(da)+'&a='+encodeURIComponent(a);
+ let url=SCRIPT_URL+'?action=patientHistory&paziente='+encodeURIComponent(paziente);
+ if(tutto) url+='&tutto=1';
+ else url+='&da='+encodeURIComponent(da)+'&a='+encodeURIComponent(a);
  return new Promise((resolve,reject)=>jsonp(url,(data,err)=>{
   if(err||!data||data.ok!==true||!Array.isArray(data.righe))return reject(new Error((data&&data.errore)||'Storico non disponibile'));
   patientHistoryCache.set(key,{ts:Date.now(),data});resolve(data);
  }));
 }
 async function caricaStoricoSelezionato(){
- const paziente=historyCurrentPatient,da=document.getElementById('history-da').value,a=document.getElementById('history-a').value;
+ const paziente=historyCurrentPatient,da=document.getElementById('history-da').value,a=document.getElementById('history-a').value,tutto=historyAllMode;
  const meta=document.getElementById('history-meta'),list=document.getElementById('history-list'),btn=document.getElementById('history-search');
- if(!paziente||!da||!a){meta.textContent='Seleziona data iniziale e finale';return;}
- if(a<da){meta.textContent='La data finale non può precedere quella iniziale';return;}
- btn.disabled=true;meta.textContent='Caricamento storico…';list.innerHTML='<div class="stats-detail-empty">Ricerca delle prestazioni nel periodo…</div>';
+ if(!paziente)return;
+ if(!tutto&&(!da||!a)){meta.textContent='Seleziona data iniziale e finale oppure usa uno dei periodi rapidi.';return;}
+ if(!tutto&&a<da){meta.textContent='La data finale non può precedere quella iniziale';return;}
+ btn.disabled=true;meta.textContent=tutto?'Caricamento di tutto lo storico…':'Caricamento storico…';list.innerHTML='<div class="stats-detail-empty">Ricerca delle prestazioni nei due studi…</div>';
  try{
-  const data=await fetchStoricoPaziente(paziente,da,a),righe=data.righe||[];
-  const d1=dataDaIso(da),d2=dataDaIso(a);
-  meta.textContent=`${righe.length} ${righe.length===1?'prestazione trovata':'prestazioni trovate'} · ${formatDateIT(d1)} → ${formatDateIT(d2)} · Boccetta + Trento · Elenco completo, senza limite`;
+  const data=await fetchStoricoPaziente(paziente,da,a,tutto),righe=data.righe||[];
+  if(tutto){
+   meta.textContent=`${righe.length} ${righe.length===1?'prestazione trovata':'prestazioni trovate'} · Tutto lo storico · Boccetta + Trento · Elenco completo, senza limite`;
+  }else{
+   const d1=dataDaIso(da),d2=dataDaIso(a);
+   meta.textContent=`${righe.length} ${righe.length===1?'prestazione trovata':'prestazioni trovate'} · ${formatDateIT(d1)} → ${formatDateIT(d2)} · Boccetta + Trento · Elenco completo, senza limite`;
+  }
   list.innerHTML=righe.length?righe.map(r=>{
    const ter=[r.terapista,r.terapista2].filter(Boolean).join(' + ')||'—';
    const prezzo=String(r.prezzo??'').trim()?`€ ${escapeHtml(String(r.prezzo))}`:'—';
    return `<div class="history-row"><div class="h-main">${escapeHtml(r.data||'—')}<br><span class="h-small">${escapeHtml(r.fascia||'—')}</span></div><div class="h-small"><strong>${escapeHtml(r.studio||'—')}</strong><br>${escapeHtml(etichettaEsito(r.esito))}</div><div class="h-small"><strong>${escapeHtml(r.prestazione||'Non specificata')}</strong><br>${escapeHtml(ter)}</div><div class="h-small"><strong>${prezzo}</strong><br>${escapeHtml(r.paziente||paziente)}</div></div>`;
   }).join(''):'<div class="stats-detail-empty">Nessuna prestazione trovata nel periodo selezionato.</div>';
- }catch(err){meta.textContent='Storico non disponibile';list.innerHTML='<div class="stats-detail-empty">Non è stato possibile caricare lo storico. Verifica che Apps Script sia aggiornato alla v3.7 e riprova.</div>';}
- finally{btn.disabled=false;}
+ }catch(err){
+  console.error('Storico paziente:',err);
+  meta.textContent='Storico non disponibile';
+  list.innerHTML='<div class="stats-detail-empty">La ricerca non è stata completata. Riprova; se il problema persiste, verifica il deployment di Apps Script.</div>';
+ }finally{btn.disabled=false;}
 }
 function apriStoricoPaziente(paziente){
  const overlay=document.getElementById('history-overlay'),title=document.getElementById('history-title');
- if(!overlay||!title)return;historyCurrentPatient=paziente;title.textContent='🕘 Storico completo — '+paziente;overlay.classList.add('show');
+ if(!overlay||!title)return;
+ historyCurrentPatient=paziente;historyAllMode=false;title.textContent='🕘 Storico completo — '+paziente;overlay.classList.add('show');
+ // Apertura intenzionalmente "a riposo": nessuna chiamata al backend finché l'utente non sceglie il periodo.
  const a=new Date();a.setHours(12,0,0,0);const da=new Date(a);da.setMonth(da.getMonth()-24);
  document.getElementById('history-da').value=isoDate(da);document.getElementById('history-a').value=isoDate(a);
- caricaStoricoSelezionato();
+ document.getElementById('history-meta').textContent='Scegli un periodo: lo storico non viene caricato automaticamente.';
+ document.getElementById('history-list').innerHTML='<div class="stats-detail-empty">Seleziona 3, 6, 12, 24 mesi, Tutto lo storico oppure imposta Dal/Al e premi Cerca.</div>';
 }
 
 // ── STATISTICHE ───────────────────────────────────────────────
