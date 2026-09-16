@@ -591,10 +591,32 @@ function setStudio(s){
 function jsonp(url,cb,timeoutMs=10000){
  const name='cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
  const script=document.createElement('script');
- const timer=setTimeout(()=>{ delete window[name]; script.remove(); if(cb) cb(null,'timeout'); },timeoutMs);
- window[name]=function(data){ clearTimeout(timer); delete window[name]; script.remove(); if(cb) cb(data); };
+ let done=false;
+ const finish=(data,err)=>{
+  if(done)return;
+  done=true;
+  clearTimeout(timer);
+  delete window[name];
+  script.remove();
+  if(cb) cb(data,err);
+ };
+ const timer=setTimeout(()=>finish(null,'timeout'),timeoutMs);
+ window[name]=function(data){ finish(data,null); };
+ script.onerror=function(){ finish(null,'network'); };
  script.src=url+(url.includes('?')?'&':'?')+'callback='+name;
  document.head.appendChild(script);
+}
+function jsonpLetturaResiliente(url,cb,primoTimeout=15000,secondoTimeout=25000){
+ let secondoTentativo=false;
+ const esegui=(timeoutMs)=>jsonp(url,function(data,err){
+  if((err||!data)&&!secondoTentativo){
+   secondoTentativo=true;
+   setTimeout(()=>esegui(secondoTimeout),600);
+   return;
+  }
+  cb(data,err);
+ },timeoutMs);
+ esegui(primoTimeout);
 }
 function dataIsoAgenda(){
  const m=String((calData&&calData.data)||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -628,7 +650,7 @@ function caricaCensimenti(){
  censimentiData={}; censimentiReady=false; censimentiLoading=true; censimentiError='';
  aggiornaBarraCensimento();
  const url=CENSIMENTI_URL+'?action=statoAgenda&date='+encodeURIComponent(dataIsoAgenda());
- jsonp(url,function(data,err){
+ jsonpLetturaResiliente(url,function(data,err){
   censimentiLoading=false;
   if(err||!data||!data.ok||!Array.isArray(data.statiCensimento)){
    censimentiError=(data&&data.errore)||'Controllo anagrafica non disponibile';
@@ -693,8 +715,8 @@ function carica(){
  document.getElementById('main').innerHTML='<div class="msg">Carico dal calendario...</div>';
  document.getElementById('cbadge').textContent='—';
  document.getElementById('abar').className='abar';
- jsonp(SCRIPT_URL+'?giorni='+offset, function(data,err){
-  if(err||!data){ document.getElementById('main').innerHTML='<div class="err">Errore di connessione. Verifica la rete e riprova.</div>'; return; }
+ jsonpLetturaResiliente(SCRIPT_URL+'?giorni='+offset, function(data,err){
+  if(err||!data){ document.getElementById('main').innerHTML='<div class="err">Servizio temporaneamente non raggiungibile. Tocca Aggiorna per riprovare.</div>'; return; }
   calData=data;
   if(!calData.assegnazioni) calData.assegnazioni={};
   if(!calData.esitiVisita) calData.esitiVisita={};
