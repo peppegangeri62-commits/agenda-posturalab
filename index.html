@@ -588,7 +588,7 @@ function setStudio(s){
  document.querySelectorAll('.sb').forEach(b=>b.classList.toggle('active',b.textContent===`Studio ${s}`));
  if(calData) render(); else carica();
 }
-function jsonp(url,cb,timeoutMs=10000){
+function jsonp(url,cb,timeoutMs=30000){
  const name='cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
  const script=document.createElement('script');
  let done=false;
