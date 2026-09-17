@@ -1,0 +1,36 @@
+name: V3 hotfix write timeout
+
+on:
+  push:
+    paths:
+      - '.github/workflows/v3-hotfix-write-timeout.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-v3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch JSONP default timeout
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = 'function jsonp(url,cb,timeoutMs=10000){'
+          new = 'function jsonp(url,cb,timeoutMs=30000){'
+          n = s.count(old)
+          if n != 1:
+              raise SystemExit(f'Expected exactly one timeout marker, found {n}')
+          p.write_text(s.replace(old,new), encoding='utf-8')
+      - name: Commit hotfix
+        run: |
+          git config user.name "posturallab-hotfix-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          git commit -m "V3.16 hotfix: extend write timeout to 30s"
+          git push origin HEAD:main
